@@ -65,11 +65,19 @@ async function main() {
   if (options.address) {
     if (!options.rpc) fail('--address given but no --rpc / MAINNET_RPC_URL to check it against')
     else {
-      const balance = await new JsonRpcProvider(options.rpc).getBalance(options.address)
-      if (balance < inputSum) {
-        fail(`${options.address} holds ${balance} wei, less than tokenTotal ${inputSum} wei`)
-      } else {
-        console.log(`balance      : ${balance} wei at ${options.address} (covers tokenTotal)`)
+      // The RPC call must not be allowed to escape main(): if it threw, every
+      // synchronous failure already accumulated above would go unprinted, and an
+      // operator would fix their connectivity, re-run, and never learn the data
+      // was also wrong. Degrade it to just another entry in the failure list.
+      try {
+        const balance = await new JsonRpcProvider(options.rpc).getBalance(options.address)
+        if (balance < inputSum) {
+          fail(`${options.address} holds ${balance} wei, less than tokenTotal ${inputSum} wei`)
+        } else {
+          console.log(`balance      : ${balance} wei at ${options.address} (covers tokenTotal)`)
+        }
+      } catch (e) {
+        fail(`balance check against ${options.rpc} failed: ${(e as Error).message}`)
       }
     }
   }

@@ -81,4 +81,20 @@ describe('check-distribution', () => {
     const r = write(dir, 'result.json', result)
     expect(runExpectingFailure(['-i', i, '-r', r])).to.match(/not in the input/i)
   })
+
+  it('reports data failures even when the balance check cannot reach the RPC', () => {
+    const dir = tmp()
+    const result = parseBalanceMap(input)
+    result.tokenTotal = '1'
+    const i = write(dir, 'input.json', input)
+    const r = write(dir, 'result.json', result)
+    const out = runExpectingFailure([
+      '-i', i, '-r', r,
+      '--address', '0x0000000000000000000000000000000000000001',
+      '--rpc', 'http://127.0.0.1:1/unreachable',
+    ])
+    // Both the data problem AND the RPC problem must be visible.
+    expect(out).to.match(/tokenTotal/i)
+    expect(out).to.match(/balance check/i)
+  })
 })
