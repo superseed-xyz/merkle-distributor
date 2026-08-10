@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity >=0.5.0;
 
-// Allows anyone to claim a token if they exist in a merkle root.
+// Allows anyone to claim an ERC20 token if they exist in a merkle root.
+// The native-ETH distributor deliberately does not implement this interface: it has no
+// token() and its claim() pays ETH.
 interface IMerkleDistributor {
     // Returns the address of the token distributed by this contract.
     function token() external view returns (address);
