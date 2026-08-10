@@ -26,6 +26,15 @@ describe('MerkleDistributorETH', () => {
     return { distributor, tree, endTime, owner, alice, bob, carol }
   }
 
+  it('rejects deployment with a zero owner', async () => {
+    const factory = await ethers.getContractFactory('MerkleDistributorETH')
+    const endTime = (await ethers.provider.getBlock('latest'))!.timestamp + ONE_YEAR
+    await expect(factory.deploy(ZERO_BYTES32, endTime, ethers.ZeroAddress)).to.be.revertedWithCustomError(
+      factory,
+      'ZeroOwner'
+    )
+  })
+
   describe('storage layout', () => {
     it('places the claimed bitmap at the ERC-7201 namespaced slot', async () => {
       const { distributor, tree, alice } = await loadFixture(twoAccountFixture)

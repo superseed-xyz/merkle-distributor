@@ -10,6 +10,7 @@ error NoWithdrawDuringClaim();
 error NotOwner();
 error TransferFailed();
 error EndTimeInPast();
+error ZeroOwner();
 
 /// @notice Distributes native ETH against a merkle root.
 /// @dev Designed to be installed as the implementation behind an existing upgradeable
@@ -31,9 +32,13 @@ contract MerkleDistributorETH {
     address public immutable owner;
 
     event Claimed(uint256 index, address account, uint256 amount);
+    event Withdrawn(address indexed to, uint256 amount);
 
     constructor(bytes32 merkleRoot_, uint256 endTime_, address owner_) {
         if (endTime_ <= block.timestamp) revert EndTimeInPast();
+        // Without this, withdraw() is permanently uncallable and the residual balance
+        // — potentially tens of ETH of unclaimed funds — is unrecoverable forever.
+        if (owner_ == address(0)) revert ZeroOwner();
         merkleRoot = merkleRoot_;
         endTime = endTime_;
         owner = owner_;
@@ -85,8 +90,10 @@ contract MerkleDistributorETH {
     function withdraw() external {
         if (msg.sender != owner) revert NotOwner();
         if (block.timestamp < endTime) revert NoWithdrawDuringClaim();
-        (bool ok, ) = owner.call{value: address(this).balance}("");
+        uint256 amount = address(this).balance;
+        (bool ok, ) = owner.call{value: amount}("");
         if (!ok) revert TransferFailed();
+        emit Withdrawn(owner, amount);
     }
 
     /// @dev The OP-Stack proxy delegates plain transfers, so without this every ETH send
