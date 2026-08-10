@@ -35,25 +35,42 @@ async function canReceive(address: string, amount: bigint): Promise<boolean> {
   }
 }
 
+// EIP-7702 delegation designator: 0xef0100 followed by a 20-byte address = 23 bytes.
+// As of 2026 an ordinary EOA may carry one, so `getCode() !== '0x'` no longer means
+// "contract". Whether such an account accepts plain ETH depends on its delegate, so it
+// still must be probed — but counting it as a contract would badly misrepresent how much
+// manual review a recipient list needs.
+const isDelegatedEoa = (code: string) => code.startsWith('0xef0100') && code.length === 2 + 23 * 2
+
 async function main() {
   const unclaimable: { address: string; amount: string }[] = []
+  const unknown: { address: string; error: string }[] = []
   let contracts = 0
+  let delegated = 0
   let checked = 0
 
   for (let i = 0; i < entries.length; i += concurrency) {
     const batch = entries.slice(i, i + concurrency)
     const results = await Promise.all(
       batch.map(async (e) => {
-        const code = await provider.getCode(e.address)
-        const isContract = code !== '0x'
-        // EOAs (no code) can always receive ETH; only probe contracts.
-        const ok = isContract ? await canReceive(e.address, BigInt(e.amount)) : true
-        return { entry: e, isContract, ok }
+        try {
+          const code = await provider.getCode(e.address)
+          if (code === '0x') return { entry: e, kind: 'eoa' as const, ok: true }
+          const kind = isDelegatedEoa(code) ? ('delegated' as const) : ('contract' as const)
+          return { entry: e, kind, ok: await canReceive(e.address, BigInt(e.amount)) }
+        } catch (err) {
+          // A run over 10k+ addresses against a public endpoint WILL hit transient
+          // failures. Letting one rejection escape Promise.all would abort the whole
+          // run and discard every batch already tallied. Record and carry on.
+          return { entry: e, kind: 'unknown' as const, ok: true, error: (err as Error).message }
+        }
       })
     )
     for (const r of results) {
       checked++
-      if (r.isContract) contracts++
+      if (r.kind === 'contract') contracts++
+      if (r.kind === 'delegated') delegated++
+      if (r.kind === 'unknown') unknown.push({ address: r.entry.address, error: r.error })
       if (!r.ok) unclaimable.push({ address: r.entry.address, amount: r.entry.amount })
     }
     process.stderr.write(`checked ${checked}/${entries.length}\r`)
@@ -64,8 +81,13 @@ async function main() {
 
   console.log(`recipients     : ${entries.length}`)
   console.log(`contracts      : ${contracts}`)
+  console.log(`delegated EOAs : ${delegated} (EIP-7702)`)
   console.log(`unclaimable    : ${unclaimable.length}`)
   console.log(`stranded       : ${stranded} wei (${formatEther(stranded)} ETH)`)
+  if (unknown.length) {
+    console.log(`NOT CHECKED    : ${unknown.length} (RPC errors — re-run before trusting the figures above)`)
+    for (const u of unknown.slice(0, 10)) console.log(`  ${u.address}  ${u.error}`)
+  }
 
   if (options.output) {
     fs.writeFileSync(options.output, JSON.stringify(unclaimable, null, 2) + '\n')
@@ -79,7 +101,17 @@ async function main() {
   console.log('before the upgrade is signed.')
 }
 
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
-})
+// JsonRpcProvider retries network detection in the background on a 1s timer until
+// destroy() is called (see ethers' JsonRpcApiProvider#_start). An unreachable RPC would
+// otherwise leave that retry loop running forever after main() has already printed its
+// report, so the process never exits even though the work is done.
+main()
+  .then(() => {
+    provider.destroy()
+    process.exit(0)
+  })
+  .catch((e) => {
+    console.error(e)
+    provider.destroy()
+    process.exit(1)
+  })
