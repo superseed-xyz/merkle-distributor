@@ -1,4 +1,4 @@
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import { ethers } from 'hardhat'
 import BalanceTree from '../src/balance-tree'
@@ -147,6 +147,77 @@ describe('MerkleDistributorETH', () => {
       await expect(
         deployer.sendTransaction({ to: await distributor.getAddress(), value: 5n })
       ).to.changeEtherBalance(await distributor.getAddress(), 5n)
+    })
+  })
+
+  describe('deadline and withdraw', () => {
+    it('reverts deployment when endTime is in the past', async () => {
+      const [, owner] = await ethers.getSigners()
+      const factory = await ethers.getContractFactory('MerkleDistributorETH')
+      const past = (await ethers.provider.getBlock('latest'))!.timestamp - 1
+      await expect(factory.deploy(ZERO_BYTES32, past, owner.address)).to.be.revertedWithCustomError(
+        factory,
+        'EndTimeInPast'
+      )
+    })
+
+    it('rejects a claim after endTime', async () => {
+      const { distributor, tree, endTime, alice } = await loadFixture(twoAccountFixture)
+      const proof = tree.getProof(0, alice.address, 100n)
+      await time.increaseTo(endTime + 1)
+      await expect(distributor.claim(0, alice.address, 100n, proof)).to.be.revertedWithCustomError(
+        distributor,
+        'ClaimWindowFinished'
+      )
+    })
+
+    it('accepts a claim in the final second of the window', async () => {
+      const { distributor, tree, endTime, alice } = await loadFixture(twoAccountFixture)
+      const proof = tree.getProof(0, alice.address, 100n)
+      await time.setNextBlockTimestamp(endTime)
+      await expect(distributor.claim(0, alice.address, 100n, proof)).to.changeEtherBalance(alice.address, 100n)
+    })
+
+    it('rejects withdraw from a non-owner even after endTime', async () => {
+      const { distributor, endTime, carol } = await loadFixture(twoAccountFixture)
+      await time.increaseTo(endTime + 1)
+      await expect(distributor.connect(carol).withdraw()).to.be.revertedWithCustomError(distributor, 'NotOwner')
+    })
+
+    it('rejects withdraw from the owner before endTime', async () => {
+      const { distributor, owner } = await loadFixture(twoAccountFixture)
+      await expect(distributor.connect(owner).withdraw()).to.be.revertedWithCustomError(
+        distributor,
+        'NoWithdrawDuringClaim'
+      )
+    })
+
+    it('sweeps the full remaining balance to the owner after endTime', async () => {
+      const { distributor, tree, endTime, owner, alice } = await loadFixture(twoAccountFixture)
+      await distributor.claim(0, alice.address, 100n, tree.getProof(0, alice.address, 100n))
+      await time.increaseTo(endTime + 1)
+      await expect(distributor.connect(owner).withdraw()).to.changeEtherBalances(
+        [await distributor.getAddress(), owner.address],
+        [-900n, 900n]
+      )
+    })
+
+    it('emits Withdrawn with the swept amount', async () => {
+      const { distributor, tree, endTime, owner, alice } = await loadFixture(twoAccountFixture)
+      await distributor.claim(0, alice.address, 100n, tree.getProof(0, alice.address, 100n))
+      await time.increaseTo(endTime + 1)
+      // 1000 funded - 100 claimed = 900 remaining.
+      await expect(distributor.connect(owner).withdraw())
+        .to.emit(distributor, 'Withdrawn')
+        .withArgs(owner.address, 900n)
+    })
+
+    it('reports the configured immutables', async () => {
+      const { distributor, tree, endTime, owner } = await loadFixture(twoAccountFixture)
+      expect(await distributor.merkleRoot()).to.equal(tree.getHexRoot())
+      expect(await distributor.endTime()).to.equal(BigInt(endTime))
+      expect(await distributor.owner()).to.equal(owner.address)
+      expect(await distributor.version()).to.equal('1.0.0')
     })
   })
 })
