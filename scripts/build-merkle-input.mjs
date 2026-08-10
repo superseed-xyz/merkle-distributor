@@ -30,10 +30,17 @@ const VALUED_FLAGS = new Set([
   '--expect-total',
   '--expect-count',
 ])
+const BOOLEAN_FLAGS = new Set(['--help'])
 let inputPath = null
 for (let i = 0; i < argv.length; i++) {
   if (argv[i].startsWith('--')) {
-    if (VALUED_FLAGS.has(argv[i])) i++ // skip its value
+    if (!VALUED_FLAGS.has(argv[i]) && !BOOLEAN_FLAGS.has(argv[i])) {
+      throw new Error(`unknown flag: ${argv[i]}`)
+    }
+    if (VALUED_FLAGS.has(argv[i])) {
+      if (i + 1 >= argv.length) throw new Error(`${argv[i]} requires a value`)
+      i++ // skip its value
+    }
     continue
   }
   if (inputPath !== null) throw new Error(`unexpected extra argument: ${argv[i]}`)
@@ -110,7 +117,9 @@ function parseCsv(text) {
   }
   const kept = rows.filter((r) => r.length > 1 || r[0] !== '')
   if (kept.length < 2) throw new Error('CSV has no data rows')
-  const header = kept[0].map((h) => h.trim())
+  const header = kept[0].map((h) => h.replace(/^﻿/, '').trim())
+  const dupes = header.filter((h, i) => header.indexOf(h) !== i)
+  if (dupes.length) throw new Error(`duplicate column name(s) in CSV header: ${[...new Set(dupes)].join(', ')}`)
   return kept.slice(1).map((r) => Object.fromEntries(header.map((h, i) => [h, r[i]])))
 }
 
@@ -126,12 +135,21 @@ if (!(amountColumn in rows[0])) {
   throw new Error(`input is missing the "${amountColumn}" column; found: ${Object.keys(rows[0]).join(', ')}`)
 }
 
+const MAX_UINT256 = (1n << 256n) - 1n
+
 const seen = new Set()
 const out = []
 let sum = 0n
 let dropped = 0
 
 for (const [i, row] of rows.entries()) {
+  if (typeof row[amountColumn] === 'number') {
+    throw new Error(
+      `row ${i}: amount must be a STRING, not a JSON number — ` +
+        `numeric literals lose precision above 2^53 (got ${row[amountColumn]})`
+    )
+  }
+
   const address = String(row[addressColumn]).trim().toLowerCase()
   const rawAmount = String(row[amountColumn]).trim().toLowerCase()
 
@@ -148,6 +166,7 @@ for (const [i, row] of rows.entries()) {
 
   const wei = BigInt(isHex && !rawAmount.startsWith('0x') ? '0x' + rawAmount : rawAmount)
   if (wei <= 0n) throw new Error(`row ${i}: amount must be positive for ${address}`)
+  if (wei > MAX_UINT256) throw new Error(`row ${i}: amount exceeds uint256 for ${address}`)
 
   if (wei < minWei) {
     dropped++

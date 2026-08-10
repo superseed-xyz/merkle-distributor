@@ -96,4 +96,34 @@ describe('build-merkle-input', () => {
     const out = JSON.parse(run([CSV, '--expect-total', '1002500050000000000', '--expect-count', '3']))
     expect(out).to.have.length(3)
   })
+
+  it('fails on a bare JSON-number amount, which would silently lose precision', () => {
+    const p = writeTemp(
+      'numeric-amount.json',
+      '[{"address":"0x' + '1'.repeat(40) + '","amount":100000000000000001}]'
+    )
+    expect(runExpectingFailure([p])).to.match(/STRING|number/i)
+  })
+
+  it('fails on an amount exceeding uint256', () => {
+    const p = writeTemp(
+      'too-big.json',
+      JSON.stringify([
+        {
+          address: '0x' + '1'.repeat(40),
+          amount: '115792089237316195423570985008687907853269984665640564039457584007913129639936',
+        },
+      ])
+    )
+    expect(runExpectingFailure([p])).to.match(/uint256/i)
+  })
+
+  it('fails on a duplicate CSV column name', () => {
+    const p = writeTemp('dup-column.csv', 'address,amount,amount\n0x' + '1'.repeat(40) + ',100,200\n')
+    expect(runExpectingFailure([p])).to.match(/duplicate column/i)
+  })
+
+  it('fails on an unknown flag', () => {
+    expect(runExpectingFailure([CSV, '--exprect-total'])).to.match(/unknown flag/i)
+  })
 })
