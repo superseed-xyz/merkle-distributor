@@ -1,33 +1,13 @@
 name: Lint
-
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
-
+on: [push, pull_request]
 jobs:
-  run-linters:
-    name: Run linters
+  lint:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v3
-
-      - name: Set up node
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16
-
-      - name: Install dependencies
-        run: yarn
-
-      - name: Run linters
-        uses: wearerequired/lint-action@v1
-        with:
-          github_token: ${{ secrets.github_token }}
-          prettier: true
-          auto_fix: true
+          node-version: 22
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: npx prettier --check '**/*.ts' '**/*.md' --ignore-path .gitignore

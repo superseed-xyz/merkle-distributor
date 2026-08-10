@@ -28,14 +28,22 @@ const gasUsed = {
 
 const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
-const deployContract = async (factory: ContractFactory, tokenAddress: string, merkleRoot: string, contract: string) => {
+const deployContract = async (
+  factory: ContractFactory,
+  tokenAddress: string,
+  merkleRoot: string,
+  contract: string
+): Promise<Contract> => {
   const currentTimestamp = Math.floor(Date.now() / 1000)
   const distributor =
     contract === 'MerkleDistributorWithDeadline'
       ? await factory.deploy(tokenAddress, merkleRoot, currentTimestamp + 31536000)
       : await factory.deploy(tokenAddress, merkleRoot)
   await distributor.waitForDeployment()
-  return distributor
+  // ethers v6: ContractFactory#deploy() returns BaseContract, which has no typed
+  // methods. Assert the shape at this single boundary rather than scattering casts
+  // at every call site.
+  return distributor as unknown as Contract
 }
 
 for (const contract of ['MerkleDistributor', 'MerkleDistributorWithDeadline']) {
@@ -427,7 +435,7 @@ describe('#MerkleDistributorWithDeadline', () => {
   })
 
   it('only owner can withdraw', async () => {
-    distributor = distributor.connect(wallet1) as Contract
+    distributor = distributor.connect(wallet1) as unknown as Contract
     await expect(distributor.withdraw()).to.be.revertedWith('Ownable: caller is not the owner')
   })
 
@@ -458,7 +466,7 @@ describe('#MerkleDistributorWithDeadline', () => {
   it('only owner can withdraw even after end time', async () => {
     const oneSecondAfterEndTime = currentTimestamp + 31536001
     await ethers.provider.send('evm_mine', [oneSecondAfterEndTime])
-    distributor = distributor.connect(wallet1) as Contract
+    distributor = distributor.connect(wallet1) as unknown as Contract
     await expect(distributor.withdraw()).to.be.revertedWith('Ownable: caller is not the owner')
   })
 })

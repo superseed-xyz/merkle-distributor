@@ -1,5 +1,6 @@
 import { impersonateAccount, setBalance, time } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
+import { Contract } from 'ethers'
 import { ethers } from 'hardhat'
 import BalanceTree from '../../src/balance-tree'
 
@@ -86,7 +87,7 @@ const configured = Boolean(PROXY && PROXY_ADMIN && ADMIN_OWNER && process.env.MA
     // Sweep after the deadline returns the surplus.
     await time.increaseTo(endTime + 1)
     const remaining = await ethers.provider.getBalance(PROXY!)
-    await expect(distributor.connect(deployer).withdraw()).to.changeEtherBalances(
+    await expect((distributor.connect(deployer) as unknown as Contract).withdraw()).to.changeEtherBalances(
       [PROXY!, deployer.address],
       [-remaining, remaining]
     )

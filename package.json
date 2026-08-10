@@ -1,11 +1,13 @@
 {
-  "name": "@superseed/merkle-distributor",
+  "name": "merkle-distributor",
   "version": "2.0.0",
   "description": "Merkle distributors for ERC20 tokens and native ETH",
   "license": "GPL-3.0-or-later",
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "typecheck": "tsc --noEmit",
+    "pipeline": "./scripts/pipeline.sh",
     "build-merkle-input": "node scripts/build-merkle-input.mjs",
     "generate-merkle-root": "ts-node scripts/generate-merkle-root.ts",
     "verify-merkle-root": "ts-node scripts/verify-merkle-root.ts",

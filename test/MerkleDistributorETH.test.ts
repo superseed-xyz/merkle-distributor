@@ -1,5 +1,6 @@
 import { loadFixture, time } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
+import { Contract } from 'ethers'
 import { ethers } from 'hardhat'
 import BalanceTree from '../src/balance-tree'
 
@@ -83,10 +84,9 @@ describe('MerkleDistributorETH', () => {
     it('lets a third party submit a claim, paying the account not the caller', async () => {
       const { distributor, tree, alice, carol } = await loadFixture(twoAccountFixture)
       const proof = tree.getProof(0, alice.address, 100n)
-      await expect(distributor.connect(carol).claim(0, alice.address, 100n, proof)).to.changeEtherBalance(
-        alice.address,
-        100n
-      )
+      await expect(
+        (distributor.connect(carol) as unknown as Contract).claim(0, alice.address, 100n, proof)
+      ).to.changeEtherBalance(alice.address, 100n)
     })
 
     it('reverts on a second claim of the same index', async () => {
@@ -181,12 +181,15 @@ describe('MerkleDistributorETH', () => {
     it('rejects withdraw from a non-owner even after endTime', async () => {
       const { distributor, endTime, carol } = await loadFixture(twoAccountFixture)
       await time.increaseTo(endTime + 1)
-      await expect(distributor.connect(carol).withdraw()).to.be.revertedWithCustomError(distributor, 'NotOwner')
+      await expect((distributor.connect(carol) as unknown as Contract).withdraw()).to.be.revertedWithCustomError(
+        distributor,
+        'NotOwner'
+      )
     })
 
     it('rejects withdraw from the owner before endTime', async () => {
       const { distributor, owner } = await loadFixture(twoAccountFixture)
-      await expect(distributor.connect(owner).withdraw()).to.be.revertedWithCustomError(
+      await expect((distributor.connect(owner) as unknown as Contract).withdraw()).to.be.revertedWithCustomError(
         distributor,
         'NoWithdrawDuringClaim'
       )
@@ -196,7 +199,7 @@ describe('MerkleDistributorETH', () => {
       const { distributor, tree, endTime, owner, alice } = await loadFixture(twoAccountFixture)
       await distributor.claim(0, alice.address, 100n, tree.getProof(0, alice.address, 100n))
       await time.increaseTo(endTime + 1)
-      await expect(distributor.connect(owner).withdraw()).to.changeEtherBalances(
+      await expect((distributor.connect(owner) as unknown as Contract).withdraw()).to.changeEtherBalances(
         [await distributor.getAddress(), owner.address],
         [-900n, 900n]
       )
@@ -207,7 +210,7 @@ describe('MerkleDistributorETH', () => {
       await distributor.claim(0, alice.address, 100n, tree.getProof(0, alice.address, 100n))
       await time.increaseTo(endTime + 1)
       // 1000 funded - 100 claimed = 900 remaining.
-      await expect(distributor.connect(owner).withdraw())
+      await expect((distributor.connect(owner) as unknown as Contract).withdraw())
         .to.emit(distributor, 'Withdrawn')
         .withArgs(owner.address, 900n)
     })

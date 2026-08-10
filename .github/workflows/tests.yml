@@ -1,33 +1,15 @@
 name: Tests
-
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
-
+on: [push, pull_request]
 jobs:
-  unit-tests:
-    name: Unit Tests
+  test:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16
-
-      - id: yarn-cache
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-
-      - uses: actions/cache@v1
-        with:
-          path: ${{ steps.yarn-cache.outputs.dir }}
-          key: yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            yarn-
-
-      - run: yarn
+          node-version: 22
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn compile
+      - run: yarn typecheck
       - run: yarn test
