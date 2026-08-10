@@ -66,10 +66,13 @@ describe('build-merkle-input', () => {
   })
 
   it('fails on a duplicate address regardless of casing', () => {
-    const p = writeTemp('dup.json', JSON.stringify([
-      { address: '0x' + 'a'.repeat(40), amount: '1' },
-      { address: '0x' + 'A'.repeat(40), amount: '2' },
-    ]))
+    const p = writeTemp(
+      'dup.json',
+      JSON.stringify([
+        { address: '0x' + 'a'.repeat(40), amount: '1' },
+        { address: '0x' + 'A'.repeat(40), amount: '2' },
+      ])
+    )
     expect(runExpectingFailure([p])).to.match(/duplicate/i)
   })
 
@@ -98,10 +101,7 @@ describe('build-merkle-input', () => {
   })
 
   it('fails on a bare JSON-number amount, which would silently lose precision', () => {
-    const p = writeTemp(
-      'numeric-amount.json',
-      '[{"address":"0x' + '1'.repeat(40) + '","amount":100000000000000001}]'
-    )
+    const p = writeTemp('numeric-amount.json', '[{"address":"0x' + '1'.repeat(40) + '","amount":100000000000000001}]')
     expect(runExpectingFailure([p])).to.match(/STRING|number/i)
   })
 

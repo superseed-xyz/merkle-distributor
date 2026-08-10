@@ -144,9 +144,10 @@ describe('MerkleDistributorETH', () => {
     it('accepts a plain ETH transfer', async () => {
       const { distributor } = await loadFixture(twoAccountFixture)
       const [deployer] = await ethers.getSigners()
-      await expect(
-        deployer.sendTransaction({ to: await distributor.getAddress(), value: 5n })
-      ).to.changeEtherBalance(await distributor.getAddress(), 5n)
+      await expect(deployer.sendTransaction({ to: await distributor.getAddress(), value: 5n })).to.changeEtherBalance(
+        await distributor.getAddress(),
+        5n
+      )
     })
   })
 

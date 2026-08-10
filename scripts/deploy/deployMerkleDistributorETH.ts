@@ -54,8 +54,12 @@ async function main() {
   const address = await distributor.getAddress()
 
   console.log(`\nimplementation deployed: ${address}`)
-  console.log(`\nverify with:\n  npx hardhat verify --network ${network.name} ${address} ${merkleRoot} ${endTime} ${owner}`)
-  console.log(`\nnext: build the upgrade transaction\n  IMPLEMENTATION=${address} npx ts-node scripts/deploy/proposeUpgrade.ts`)
+  console.log(
+    `\nverify with:\n  npx hardhat verify --network ${network.name} ${address} ${merkleRoot} ${endTime} ${owner}`
+  )
+  console.log(
+    `\nnext: build the upgrade transaction\n  IMPLEMENTATION=${address} npx ts-node scripts/deploy/proposeUpgrade.ts`
+  )
 }
 
 main().catch((error) => {

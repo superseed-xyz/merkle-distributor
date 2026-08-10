@@ -2,9 +2,7 @@ import { program } from 'commander'
 import fs from 'fs'
 import { solidityPackedKeccak256, keccak256 } from 'ethers'
 
-program
-  .version('1.0.0')
-  .requiredOption('-i, --input <path>', 'the generate-merkle-root output to verify')
+program.version('1.0.0').requiredOption('-i, --input <path>', 'the generate-merkle-root output to verify')
 
 program.parse(process.argv)
 

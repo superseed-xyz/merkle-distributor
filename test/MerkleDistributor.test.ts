@@ -189,7 +189,9 @@ for (const contract of ['MerkleDistributor', 'MerkleDistributorWithDeadline']) {
           const proof = tree.getProof(0, wallet0.address, 100n)
           const tx = await distributor.claim(0, wallet0.address, 100n, proof)
           const receipt = await tx.wait()
-          expect(receipt!.gasUsed).to.be.lessThanOrEqual(BigInt(gasUsed[contract as keyof typeof gasUsed].twoAccountTree))
+          expect(receipt!.gasUsed).to.be.lessThanOrEqual(
+            BigInt(gasUsed[contract as keyof typeof gasUsed].twoAccountTree)
+          )
         })
       })
 
