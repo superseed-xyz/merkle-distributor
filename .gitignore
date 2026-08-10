@@ -6,3 +6,5 @@ artifacts/
 cache/
 dist/
 typechain-types/
+.env
+.env.local
