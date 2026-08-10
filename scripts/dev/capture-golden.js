@@ -5,16 +5,20 @@ const path = require('path')
 const { BigNumber } = require('ethers')
 const { parseBalanceMap } = require('../../src/parse-balance-map')
 
-const source = JSON.parse(fs.readFileSync(path.join(__dirname, '../example.json'), 'utf8'))
+// new_example.json — 34 entries in NewFormat. Use this one, NOT example.json:
+// example.json is a single-entry OldFormat map, which yields a one-leaf tree with an
+// empty proof and would make this fixture worthless as a regression guard.
+const source = JSON.parse(fs.readFileSync(path.join(__dirname, '../new_example.json'), 'utf8'))
+if (!Array.isArray(source)) throw new Error('expected the NewFormat array fixture')
 
-// The v5 pipeline consumes the old format. Capture its result...
+// The v5 pipeline consumes [{address, earnings (hex), reasons}]. Capture its result...
 const result = parseBalanceMap(source)
 
 // ...and emit the same data in the NEW canonical input shape, so the v6 code can be fed
 // an equivalent input and must produce a byte-identical root.
-const input = Object.keys(source).map((address) => ({
-  address: address,
-  amount: BigNumber.from(source[address]).toString(),
+const input = source.map((e) => ({
+  address: e.address,
+  amount: BigNumber.from(e.earnings).toString(),
 }))
 
 const golden = {
