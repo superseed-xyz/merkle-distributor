@@ -16,13 +16,26 @@ async function main() {
   const resultPath = process.env.MERKLE_RESULT
   const owner = process.env.DISTRIBUTOR_OWNER
   const windowSeconds = Number(process.env.CLAIM_WINDOW_SECONDS ?? 31536000)
+  const fundingAddress = process.env.FUNDING_ADDRESS
+  const proxy = process.env.PROXY
+  const proxyAdmin = process.env.PROXY_ADMIN
 
   if (!resultPath) throw new Error('MERKLE_RESULT is required')
   if (!owner) throw new Error('DISTRIBUTOR_OWNER is required')
   if (!ethers.isAddress(owner)) throw new Error(`DISTRIBUTOR_OWNER is not an address: ${owner}`)
   // The constructor reverts with ZeroOwner, but catching it here costs nothing,
   // whereas discovering it on-chain burns real mainnet gas on a doomed deploy.
-  if (ethers.getAddress(owner) === ethers.ZeroAddress) throw new Error('DISTRIBUTOR_OWNER must not be the zero address')
+  const ownerChecksummed = ethers.getAddress(owner)
+  if (ownerChecksummed === ethers.ZeroAddress) throw new Error('DISTRIBUTOR_OWNER must not be the zero address')
+  // If the owner were set to the ProxyAdmin or the proxy itself, withdraw() would be
+  // permanently uncallable: neither of those addresses can act as a normal EOA/Safe
+  // signer against this contract's owner-only sweep.
+  if (proxyAdmin && ethers.isAddress(proxyAdmin) && ownerChecksummed === ethers.getAddress(proxyAdmin)) {
+    throw new Error('DISTRIBUTOR_OWNER must not equal PROXY_ADMIN — withdraw() would be permanently uncallable')
+  }
+  if (proxy && ethers.isAddress(proxy) && ownerChecksummed === ethers.getAddress(proxy)) {
+    throw new Error('DISTRIBUTOR_OWNER must not equal PROXY — withdraw() would be permanently uncallable')
+  }
   if (!Number.isFinite(windowSeconds) || windowSeconds <= 0) throw new Error('CLAIM_WINDOW_SECONDS must be positive')
 
   const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
@@ -48,6 +61,20 @@ async function main() {
   console.log(`endTime     : ${endTime} (${new Date(endTime * 1000).toISOString()})`)
   console.log(`owner       : ${owner}`)
 
+  // Last cheap point to catch an underfunded proxy before spending mainnet gas on a
+  // deploy that would be followed by claims nobody can fully honour.
+  if (fundingAddress) {
+    if (!ethers.isAddress(fundingAddress)) throw new Error(`FUNDING_ADDRESS is not an address: ${fundingAddress}`)
+    const balance = await ethers.provider.getBalance(fundingAddress)
+    const tokenTotal = BigInt(result.tokenTotal)
+    if (balance < tokenTotal) {
+      throw new Error(`FUNDING_ADDRESS ${fundingAddress} holds ${balance} wei, less than tokenTotal ${tokenTotal} wei`)
+    }
+    console.log(`funding     : ${fundingAddress} holds ${balance} wei — covers tokenTotal (PASS)`)
+  } else {
+    console.log('funding     : FUNDING_ADDRESS not set — funding balance check SKIPPED')
+  }
+
   const factory = await ethers.getContractFactory('MerkleDistributorETH')
   const distributor = await factory.deploy(merkleRoot, endTime, owner)
   await distributor.waitForDeployment()
@@ -58,7 +85,8 @@ async function main() {
     `\nverify with:\n  npx hardhat verify --network ${network.name} ${address} ${merkleRoot} ${endTime} ${owner}`
   )
   console.log(
-    `\nnext: build the upgrade transaction\n  IMPLEMENTATION=${address} npx ts-node scripts/deploy/proposeUpgrade.ts`
+    `\nnext: build the upgrade transaction\n` +
+      `  PROXY=0x… PROXY_ADMIN=0x… IMPLEMENTATION=${address} npx ts-node scripts/deploy/proposeUpgrade.ts -o upgrade.json`
   )
 }
 

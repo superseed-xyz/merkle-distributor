@@ -118,6 +118,26 @@ describe('build-merkle-input', () => {
     expect(runExpectingFailure([p])).to.match(/uint256/i)
   })
 
+  it('accepts a correctly-checksummed mixed-case address, emitted lowercased', () => {
+    const checksummed = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'
+    const p = writeTemp('checksum-ok.json', JSON.stringify([{ address: checksummed, amount: '1' }]))
+    expect(JSON.parse(run([p]))).to.deep.equal([{ address: checksummed.toLowerCase(), amount: '1' }])
+  })
+
+  it('rejects a mixed-case address with a broken EIP-55 checksum', () => {
+    // Same address as above with one character's case flipped: still mixed-case,
+    // so it carries checksum information — and that information says this is wrong.
+    const broken = '0x5aaeb6053F3E94C9b9A09f33669435E7Ef1BeAed'
+    const p = writeTemp('checksum-bad.json', JSON.stringify([{ address: broken, amount: '1' }]))
+    expect(runExpectingFailure([p])).to.match(/checksum/i)
+  })
+
+  it('still accepts an all-lowercase address (no checksum information present)', () => {
+    const lower = '0x' + 'a'.repeat(40)
+    const p = writeTemp('lower.json', JSON.stringify([{ address: lower, amount: '1' }]))
+    expect(JSON.parse(run([p]))).to.deep.equal([{ address: lower, amount: '1' }])
+  })
+
   it('fails on a duplicate CSV column name', () => {
     const p = writeTemp('dup-column.csv', 'address,amount,amount\n0x' + '1'.repeat(40) + ',100,200\n')
     expect(runExpectingFailure([p])).to.match(/duplicate column/i)

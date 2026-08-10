@@ -11,6 +11,7 @@
  *   node scripts/build-merkle-input.mjs snapshot.json --min-eth 0.0001 --expect-count 10518
  */
 import { readFileSync } from 'node:fs'
+import { getAddress } from 'ethers'
 
 const argv = process.argv.slice(2)
 const flag = (n) => argv.includes(n)
@@ -150,7 +151,19 @@ for (const [i, row] of rows.entries()) {
     )
   }
 
-  const address = String(row[addressColumn]).trim().toLowerCase()
+  const rawAddress = String(row[addressColumn]).trim()
+  const lower = rawAddress.toLowerCase()
+  const isMixedCase = rawAddress !== lower && rawAddress !== rawAddress.toUpperCase()
+  if (isMixedCase) {
+    // A mixed-case address carries an EIP-55 checksum. Lowercasing it first would
+    // discard that protection and let a one-character typo through silently.
+    try {
+      getAddress(rawAddress)
+    } catch {
+      throw new Error(`row ${i}: bad EIP-55 checksum: ${rawAddress}`)
+    }
+  }
+  const address = lower
   const rawAmount = String(row[amountColumn]).trim().toLowerCase()
 
   if (!/^0x[0-9a-f]{40}$/.test(address)) throw new Error(`row ${i}: malformed address ${address}`)

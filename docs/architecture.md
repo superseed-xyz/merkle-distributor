@@ -82,5 +82,9 @@ than the one it solves. Unclaimed ETH returns to `owner` after `endTime`.
 
 `withdraw()` sends the remaining balance to `owner`, but only after `endTime`. There is
 deliberately no early escape hatch: a proxy may hold more than the claim set requires, and
-that surplus stays locked until the window closes so that no key compromise can front-run
-claimants.
+that surplus stays locked for the whole window, so a key compromise cannot front-run
+claimants before it closes. The one exception is the boundary itself: `claim()` allows
+`block.timestamp <= endTime` and `withdraw()` allows `block.timestamp >= endTime`, so at
+`block.timestamp == endTime` both are callable in the same block. This one-block overlap
+is inherited unchanged from the upstream `MerkleDistributorWithDeadline` and is not
+considered worth changing here.

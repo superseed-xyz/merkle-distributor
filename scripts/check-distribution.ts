@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { program } from 'commander'
 import fs from 'fs'
 import { getAddress, JsonRpcProvider } from 'ethers'

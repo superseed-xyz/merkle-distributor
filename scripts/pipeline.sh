@@ -30,5 +30,12 @@ npx ts-node scripts/check-distribution.ts \
   -r "$OUT_DIR/merkle-result.json" \
   ${DISTRIBUTION_ADDRESS:+--address "$DISTRIBUTION_ADDRESS"}
 
+if [ -z "${DISTRIBUTION_ADDRESS:-}" ]; then
+  echo
+  echo "WARNING: DISTRIBUTION_ADDRESS was not set, so the funding balance was NOT checked."
+  echo "         Nothing has verified that the paying address holds at least tokenTotal."
+  echo "         Set DISTRIBUTION_ADDRESS=0x... and re-run before trusting this result."
+fi
+
 echo
 echo "pipeline complete: $OUT_DIR/merkle-result.json"

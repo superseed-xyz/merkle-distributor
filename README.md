@@ -60,9 +60,13 @@ npx ts-node scripts/enumerate-unclaimable.ts -i build/merkle-input.json
 [{ "address": "0x1111…", "amount": "1000000000000000000" }]
 ```
 
-`amount` is **wei as a decimal string**. Hex is accepted only via
-`--amount-format hex`, because a hex string in a decimal field inflates the value by
-~4096× without any error.
+`amount` is **wei as a decimal string**. The default `--amount-format auto` detects hex
+by a `0x` prefix and decodes it; anything without that prefix is read as decimal. This
+means an accidental `0x` typo is caught, but it also means a value that was _meant_ to
+be decimal and happens to start with `0x` would silently be read as hex. To rule that
+out entirely, pass `--amount-format decimal`, which rejects hex outright — use it
+whenever the input is not supposed to contain any hex amounts, since a hex string
+misread as decimal (or vice versa) inflates or shrinks the value by ~4096× with no error.
 
 ## Deploying
 
@@ -96,6 +100,15 @@ implementation's storage slots are untouched.
 
 It skips unless `MAINNET_RPC_URL`, `FORK_PROXY`, `FORK_PROXY_ADMIN` and `FORK_ADMIN_OWNER`
 are all set, so it is inert in CI.
+
+## Test fixtures
+
+`test/fixtures/example-input.json` and `golden-example-result.json` are the golden
+fixture `parseBalanceMap` is checked against. `test/fixtures/new_example.json` is not
+used by any test — it is kept only as the pre-migration source data
+(`address`/`earnings`/`reasons`) that `example-input.json` was derived from, so the
+golden fixture can be regenerated from it if `parseBalanceMap`'s input format ever
+needs to change again.
 
 ## License
 
