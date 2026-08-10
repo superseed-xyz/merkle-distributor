@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { Interface, getAddress, isAddress } from 'ethers'
+import { Interface, getAddress, isAddress, ZeroAddress } from 'ethers'
 
 /**
  * Emits a Safe Transaction Builder JSON for installing an implementation behind an
@@ -14,12 +14,27 @@ function requireAddress(name: string): string {
   const value = process.env[name]
   if (!value) throw new Error(`${name} is required`)
   if (!isAddress(value)) throw new Error(`${name} is not an address: ${value}`)
-  return getAddress(value)
+  const parsed = getAddress(value)
+  // A well-formed batch built from a zero address is the dangerous case: it looks
+  // completely normal and four people sign it. Refuse rather than emit it.
+  if (parsed === ZeroAddress) throw new Error(`${name} must not be the zero address`)
+  return parsed
 }
 
 const proxy = requireAddress('PROXY')
 const proxyAdmin = requireAddress('PROXY_ADMIN')
 const implementation = requireAddress('IMPLEMENTATION')
+
+if (proxy === implementation) {
+  throw new Error('PROXY and IMPLEMENTATION are the same address — a proxy cannot be its own implementation')
+}
+if (proxy === proxyAdmin) {
+  throw new Error('PROXY and PROXY_ADMIN are the same address — check which is which')
+}
+if (implementation === proxyAdmin) {
+  throw new Error('IMPLEMENTATION and PROXY_ADMIN are the same address — check which is which')
+}
+
 const chainId = process.env.CHAIN_ID ?? '1'
 
 const outIndex = process.argv.indexOf('-o')

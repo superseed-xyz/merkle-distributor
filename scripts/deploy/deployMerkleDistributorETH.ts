@@ -20,11 +20,21 @@ async function main() {
   if (!resultPath) throw new Error('MERKLE_RESULT is required')
   if (!owner) throw new Error('DISTRIBUTOR_OWNER is required')
   if (!ethers.isAddress(owner)) throw new Error(`DISTRIBUTOR_OWNER is not an address: ${owner}`)
+  // The constructor reverts with ZeroOwner, but catching it here costs nothing,
+  // whereas discovering it on-chain burns real mainnet gas on a doomed deploy.
+  if (ethers.getAddress(owner) === ethers.ZeroAddress) throw new Error('DISTRIBUTOR_OWNER must not be the zero address')
   if (!Number.isFinite(windowSeconds) || windowSeconds <= 0) throw new Error('CLAIM_WINDOW_SECONDS must be positive')
 
   const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
   const merkleRoot: string = result.merkleRoot
   if (!/^0x[0-9a-f]{64}$/i.test(merkleRoot)) throw new Error(`bad merkleRoot in ${resultPath}`)
+  if (!result.claims || typeof result.claims !== 'object') {
+    throw new Error(`${resultPath} has no claims object — is this a generate-merkle-root output?`)
+  }
+  if (typeof result.tokenTotal !== 'string' || !/^[0-9]+$/.test(result.tokenTotal)) {
+    throw new Error(`${resultPath} has no valid decimal tokenTotal`)
+  }
+  if (Object.keys(result.claims).length === 0) throw new Error(`${resultPath} contains zero claims`)
 
   const latest = await ethers.provider.getBlock('latest')
   const endTime = latest!.timestamp + windowSeconds
