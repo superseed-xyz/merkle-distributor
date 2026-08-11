@@ -15,7 +15,7 @@ import fs from 'fs'
  */
 async function main() {
   // Defaults to the pipeline's output, so the common path needs no env var at all.
-  const resultPath = process.env.MERKLE_RESULT ?? 'dist/distribution.json'
+  const distributionPath = process.env.DISTRIBUTION_FILE ?? 'dist/distribution.json'
   const owner = process.env.DISTRIBUTOR_OWNER
   const windowSeconds = Number(process.env.CLAIM_WINDOW_SECONDS ?? 31536000)
   const proxy = process.env.PROXY
@@ -23,10 +23,10 @@ async function main() {
   // The proxy is the address that pays claims, so it is the funding address too.
   const fundingAddress = process.env.FUNDING_ADDRESS ?? proxy
 
-  if (!fs.existsSync(resultPath)) {
+  if (!fs.existsSync(distributionPath)) {
     throw new Error(
-      `${resultPath} not found. Run \`yarn distribution <snapshot>\` first, ` +
-        `or set MERKLE_RESULT to point at an existing result file.`
+      `${distributionPath} not found. Run \`yarn distribution <snapshot>\` first, ` +
+        `or set DISTRIBUTION_FILE to point at an existing distribution file.`
     )
   }
   if (!owner) throw new Error('DISTRIBUTOR_OWNER is required')
@@ -46,16 +46,16 @@ async function main() {
   }
   if (!Number.isFinite(windowSeconds) || windowSeconds <= 0) throw new Error('CLAIM_WINDOW_SECONDS must be positive')
 
-  const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'))
-  const merkleRoot: string = result.merkleRoot
-  if (!/^0x[0-9a-f]{64}$/i.test(merkleRoot)) throw new Error(`bad merkleRoot in ${resultPath}`)
-  if (!result.claims || typeof result.claims !== 'object') {
-    throw new Error(`${resultPath} has no claims object; is this a generate-merkle-root output?`)
+  const distribution = JSON.parse(fs.readFileSync(distributionPath, 'utf8'))
+  const merkleRoot: string = distribution.merkleRoot
+  if (!/^0x[0-9a-f]{64}$/i.test(merkleRoot)) throw new Error(`bad merkleRoot in ${distributionPath}`)
+  if (!distribution.claims || typeof distribution.claims !== 'object') {
+    throw new Error(`${distributionPath} has no claims object; is this a generate-merkle-root output?`)
   }
-  if (typeof result.tokenTotal !== 'string' || !/^[0-9]+$/.test(result.tokenTotal)) {
-    throw new Error(`${resultPath} has no valid decimal tokenTotal`)
+  if (typeof distribution.tokenTotal !== 'string' || !/^[0-9]+$/.test(distribution.tokenTotal)) {
+    throw new Error(`${distributionPath} has no valid decimal tokenTotal`)
   }
-  if (Object.keys(result.claims).length === 0) throw new Error(`${resultPath} contains zero claims`)
+  if (Object.keys(distribution.claims).length === 0) throw new Error(`${distributionPath} contains zero claims`)
 
   const latest = await ethers.provider.getBlock('latest')
   const endTime = latest!.timestamp + windowSeconds
@@ -64,8 +64,8 @@ async function main() {
   console.log(`network     : ${network.name} (chainId ${(await ethers.provider.getNetwork()).chainId})`)
   console.log(`deployer    : ${deployer.address}`)
   console.log(`merkleRoot  : ${merkleRoot}`)
-  console.log(`tokenTotal  : ${result.tokenTotal} wei`)
-  console.log(`recipients  : ${Object.keys(result.claims).length}`)
+  console.log(`tokenTotal  : ${distribution.tokenTotal} wei`)
+  console.log(`recipients  : ${Object.keys(distribution.claims).length}`)
   console.log(`endTime     : ${endTime} (${new Date(endTime * 1000).toISOString()})`)
   console.log(`owner       : ${owner}`)
 
@@ -74,7 +74,7 @@ async function main() {
   if (fundingAddress) {
     if (!ethers.isAddress(fundingAddress)) throw new Error(`FUNDING_ADDRESS is not an address: ${fundingAddress}`)
     const balance = await ethers.provider.getBalance(fundingAddress)
-    const tokenTotal = BigInt(result.tokenTotal)
+    const tokenTotal = BigInt(distribution.tokenTotal)
     if (balance < tokenTotal) {
       throw new Error(`FUNDING_ADDRESS ${fundingAddress} holds ${balance} wei, less than tokenTotal ${tokenTotal} wei`)
     }
@@ -94,8 +94,8 @@ async function main() {
   const artifact = {
     implementation: address,
     merkleRoot,
-    tokenTotal: result.tokenTotal,
-    recipients: Object.keys(result.claims).length,
+    tokenTotal: distribution.tokenTotal,
+    recipients: Object.keys(distribution.claims).length,
     endTime,
     owner: ownerChecksummed,
     network: network.name,

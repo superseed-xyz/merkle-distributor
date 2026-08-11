@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import { parseBalanceMap } from '../src/parse-balance-map'
 import input from './fixtures/example-input.json'
-import golden from './fixtures/golden-example-result.json'
+import golden from './fixtures/golden-example-distribution.json'
 
 describe('parseBalanceMap', () => {
   it('reproduces the ethers v5 merkle root exactly', () => {

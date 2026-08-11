@@ -33,7 +33,7 @@ describe('check-distribution', () => {
     const dir = tmp()
     const i = write(dir, 'input.json', input)
     const r = write(dir, 'result.json', parseBalanceMap(input))
-    expect(run(['-i', i, '-r', r])).to.match(/all checks passed/i)
+    expect(run(['-i', i, '-d', r])).to.match(/all checks passed/i)
   })
 
   it('fails when an address is missing from the result', () => {
@@ -42,7 +42,7 @@ describe('check-distribution', () => {
     delete (result.claims as any)[Object.keys(result.claims)[0]]
     const i = write(dir, 'input.json', input)
     const r = write(dir, 'result.json', result)
-    expect(runExpectingFailure(['-i', i, '-r', r])).to.match(/missing/i)
+    expect(runExpectingFailure(['-i', i, '-d', r])).to.match(/missing/i)
   })
 
   it('fails when an amount disagrees', () => {
@@ -52,7 +52,7 @@ describe('check-distribution', () => {
     result.claims[first].amount = '999'
     const i = write(dir, 'input.json', input)
     const r = write(dir, 'result.json', result)
-    expect(runExpectingFailure(['-i', i, '-r', r])).to.match(/amount/i)
+    expect(runExpectingFailure(['-i', i, '-d', r])).to.match(/amount/i)
   })
 
   it('fails when tokenTotal disagrees with the input sum', () => {
@@ -61,7 +61,7 @@ describe('check-distribution', () => {
     result.tokenTotal = '1'
     const i = write(dir, 'input.json', input)
     const r = write(dir, 'result.json', result)
-    expect(runExpectingFailure(['-i', i, '-r', r])).to.match(/tokenTotal/i)
+    expect(runExpectingFailure(['-i', i, '-d', r])).to.match(/tokenTotal/i)
   })
 
   it('fails when indices are not contiguous', () => {
@@ -70,7 +70,7 @@ describe('check-distribution', () => {
     result.claims[Object.keys(result.claims)[1]].index = 7
     const i = write(dir, 'input.json', input)
     const r = write(dir, 'result.json', result)
-    expect(runExpectingFailure(['-i', i, '-r', r])).to.match(/contiguous/i)
+    expect(runExpectingFailure(['-i', i, '-d', r])).to.match(/contiguous/i)
   })
 
   it('fails when the result contains an address not in the input', () => {
@@ -78,7 +78,7 @@ describe('check-distribution', () => {
     const result = parseBalanceMap([...input, { address: '0x' + '3'.repeat(40), amount: '1' }])
     const i = write(dir, 'input.json', input)
     const r = write(dir, 'result.json', result)
-    expect(runExpectingFailure(['-i', i, '-r', r])).to.match(/not in the input/i)
+    expect(runExpectingFailure(['-i', i, '-d', r])).to.match(/not in the input/i)
   })
 
   it('reports data failures even when the balance check cannot reach the RPC', () => {
@@ -90,7 +90,7 @@ describe('check-distribution', () => {
     const out = runExpectingFailure([
       '-i',
       i,
-      '-r',
+      '-d',
       r,
       '--address',
       '0x0000000000000000000000000000000000000001',

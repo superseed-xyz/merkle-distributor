@@ -33,10 +33,10 @@ cat "$OUT_DIR/.root.log"
 echo "==> 3/4 re-verifying every proof and reconstructing the root independently"
 npx ts-node scripts/verify-merkle-root.ts -i "$OUT_DIR/distribution.json" | tail -3
 
-echo "==> 4/4 cross-checking the result against the input"
+echo "==> 4/4 cross-checking the distribution against the recipients"
 npx ts-node scripts/check-distribution.ts \
   -i "$OUT_DIR/recipients.json" \
-  -r "$OUT_DIR/distribution.json" \
+  -d "$OUT_DIR/distribution.json" \
   ${FUNDING:+--address "$FUNDING"}
 
 ROOT=$(node -e "console.log(require('./$OUT_DIR/distribution.json').merkleRoot)")
