@@ -41,8 +41,6 @@ contract MerkleDistributorETH {
 
     constructor(bytes32 merkleRoot_, uint256 endTime_, address owner_) {
         if (endTime_ <= block.timestamp) revert EndTimeInPast();
-        // Without this, withdraw() is permanently uncallable and the residual balance
-        // — potentially tens of ETH of unclaimed funds — is unrecoverable forever.
         if (owner_ == address(0)) revert ZeroOwner();
         merkleRoot = merkleRoot_;
         endTime = endTime_;
