@@ -39,7 +39,7 @@ the owner in slot 0, which in an already-used proxy is occupied. `owner` is an i
 The claimed bitmap is the only persistent state. It lives at
 
 ```
-keccak256(abi.encode(uint256(keccak256("0xnikolas.merkledistributor.eth.v1")) - 1)) & ~bytes32(uint256(0xff))
+keccak256(abi.encode(uint256(keccak256("superseed.merkledistributor.eth.v1")) - 1)) & ~bytes32(uint256(0xff))
 ```
 
 A default layout would place the bitmap at slot 0 and read the previous contract's
@@ -69,7 +69,7 @@ the others fails the suite rather than silently pointing the bitmap at an unrela
 Deploying a new implementation with the **same** root and namespace is safe and preserves
 every claim. That is the ordinary upgrade path for fixing an unrelated bug.
 
-A fork should change the `0xnikolas` prefix to its own and recompute:
+A fork should change the `superseed` prefix to its own and recompute:
 
 ```bash
 node -e "const {keccak256,toUtf8Bytes,AbiCoder,toBeHex}=require('ethers');

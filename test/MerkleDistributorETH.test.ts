@@ -45,7 +45,7 @@ describe('MerkleDistributorETH', () => {
       // hardcoded string, so bumping the version without bumping the namespace (or the
       // slot literal) fails here instead of silently pointing the bitmap elsewhere.
       const storageVersion = await distributor.STORAGE_VERSION()
-      const namespace = `0xnikolas.merkledistributor.eth.v${storageVersion}`
+      const namespace = `superseed.merkledistributor.eth.v${storageVersion}`
       const expectedSlot = (() => {
         const inner = BigInt(ethers.keccak256(ethers.toUtf8Bytes(namespace))) - 1n
         return BigInt(ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(['uint256'], [inner]))) & ~0xffn

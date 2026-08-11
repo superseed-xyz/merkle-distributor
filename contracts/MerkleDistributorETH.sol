@@ -16,7 +16,7 @@ error ZeroOwner();
 /// @dev Built to run behind a proxy whose storage is already in use: config lives in
 ///      immutables, state in one ERC-7201 slot. See docs/architecture.md.
 contract MerkleDistributorETH {
-    /// @custom:storage-location erc7201:0xnikolas.merkledistributor.eth.v1
+    /// @custom:storage-location erc7201:superseed.merkledistributor.eth.v1
     struct DistributorStorage {
         mapping(uint256 => uint256) claimedBitMap;
     }
@@ -24,10 +24,10 @@ contract MerkleDistributorETH {
     /// @notice Which claim-bitmap generation this implementation reads and writes.
     uint256 public constant STORAGE_VERSION = 1;
 
-    // keccak256(abi.encode(uint256(keccak256("0xnikolas.merkledistributor.eth.v1")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("superseed.merkledistributor.eth.v1")) - 1)) & ~bytes32(uint256(0xff))
     // Rotating a root means bumping the namespace, STORAGE_VERSION and this literal together;
     // the storage-layout test fails if they disagree. See docs/architecture.md.
-    bytes32 private constant STORAGE_SLOT = 0x3c2c73883e6aaa708562d21bf91680ef9560a8a682410fce169fc4e2fa694400;
+    bytes32 private constant STORAGE_SLOT = 0xf1244374a681ce036c09aa3a94dc201275b109e965cdf26ca3c475a86f309d00;
 
     bytes32 public immutable merkleRoot;
     uint256 public immutable endTime;
