@@ -25,27 +25,11 @@ contract MerkleDistributorETH {
     }
 
     /// @notice Which claim-bitmap generation this implementation reads and writes.
-    /// @dev Mirrors the `.vN` suffix of the storage namespace. Exposed so an operator can
-    ///      confirm on-chain which generation a deployed implementation is bound to.
     uint256 public constant STORAGE_VERSION = 1;
 
     // keccak256(abi.encode(uint256(keccak256("0xnikolas.merkledistributor.eth.v1")) - 1)) & ~bytes32(uint256(0xff))
-    //
-    // ROTATING THE MERKLE ROOT: bump the `.vN` suffix above, bump STORAGE_VERSION, and
-    // recompute this constant. A new generation starts from an all-zero bitmap, so the
-    // replacement tree MUST be built from UNCLAIMED addresses only — carrying over an
-    // already-claimed address would let it claim a second time.
-    // Reusing the same namespace with a different root is the other failure: indices are
-    // positions in one specific tree, so the old bitmap would mark the wrong entries.
-    //
-    // Recompute with:
-    //   node -e "const {keccak256,toUtf8Bytes,AbiCoder,toBeHex}=require('ethers');
-    //     const i=BigInt(keccak256(toUtf8Bytes('<namespace>')))-1n;
-    //     console.log(toBeHex(BigInt(keccak256(AbiCoder.defaultAbiCoder().encode(['uint256'],[i])))&~0xffn,32))"
-    //
-    // The storage-layout test derives the slot from the namespace and STORAGE_VERSION and
-    // asserts it equals the literal below, so bumping one without the others fails the
-    // suite rather than silently pointing the bitmap at an unrelated slot.
+    // Rotating a root means bumping the namespace, STORAGE_VERSION and this literal together —
+    // the storage-layout test fails if they disagree. See docs/architecture.md.
     bytes32 private constant STORAGE_SLOT = 0x3c2c73883e6aaa708562d21bf91680ef9560a8a682410fce169fc4e2fa694400;
 
     bytes32 public immutable merkleRoot;

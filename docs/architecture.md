@@ -69,8 +69,13 @@ the others fails the suite rather than silently pointing the bitmap at an unrela
 Deploying a new implementation with the **same** root and namespace is safe and preserves
 every claim — that is the ordinary upgrade path for fixing an unrelated bug.
 
-A fork should change the `0xnikolas` prefix to its own and recompute; the contract carries
-the one-liner that derives the constant.
+A fork should change the `0xnikolas` prefix to its own and recompute:
+
+```bash
+node -e "const {keccak256,toUtf8Bytes,AbiCoder,toBeHex}=require('ethers');
+  const i=BigInt(keccak256(toUtf8Bytes('<your.namespace.v1>')))-1n;
+  console.log(toBeHex(BigInt(keccak256(AbiCoder.defaultAbiCoder().encode(['uint256'],[i])))&~0xffn,32))"
+```
 
 ### `receive()` is mandatory
 
