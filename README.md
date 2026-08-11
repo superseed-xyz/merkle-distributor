@@ -34,7 +34,7 @@ Set five values in `.env` once (`PROXY`, `PROXY_ADMIN`, `DISTRIBUTOR_OWNER`,
 yarn distribution ../chain-data-snapshot/eth-holders-snapshot.json --min-eth 0.0001
 
 # 2. hand the proofs to the claim interface
-cp dist/merkle-result.json ../eth-claim-portal/data/
+cp dist/distribution.json ../eth-claim-portal/data/
 
 # 3. deploy the implementation
 yarn deploy:mainnet
@@ -48,13 +48,13 @@ yarn propose-upgrade
 Everything lands in `dist/`, and each step reads the previous step's output, so no
 addresses or file paths are copied by hand:
 
-| File                      | Written by | Contains                                              |
-| ------------------------- | ---------- | ----------------------------------------------------- |
-| `dist/merkle-input.json`  | step 1     | the validated, filtered `{address, amount}` set       |
-| `dist/merkle-result.json` | step 1     | root, tokenTotal and every proof                      |
-| `dist/SUMMARY.txt`        | step 1     | what was built, and **what the filter excluded**      |
-| `dist/deployment.json`    | step 3     | implementation address, root, endTime, owner, tx hash |
-| `dist/upgrade.json`       | step 4     | the Safe batch                                        |
+| File                     | Written by | Contains                                              |
+| ------------------------ | ---------- | ----------------------------------------------------- |
+| `dist/merkle-input.json` | step 1     | the validated, filtered `{address, amount}` set       |
+| `dist/distribution.json` | step 1     | root, tokenTotal and every proof                      |
+| `dist/SUMMARY.txt`       | step 1     | what was built, and **what the filter excluded**      |
+| `dist/deployment.json`   | step 3     | implementation address, root, endTime, owner, tx hash |
+| `dist/upgrade.json`      | step 4     | the Safe batch                                        |
 
 ### Step 1 in detail
 

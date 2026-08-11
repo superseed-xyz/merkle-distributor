@@ -6,7 +6,7 @@ import fs from 'fs'
  *
  *   yarn deploy:mainnet
  *
- * Reads dist/merkle-result.json (whatever `yarn distribution` produced) and the
+ * Reads dist/distribution.json (whatever `yarn distribution` produced) and the
  * addresses from .env. Writes dist/deployment.json so the upgrade step can pick the
  * implementation address up on its own instead of the operator copying it by hand.
  *
@@ -15,7 +15,7 @@ import fs from 'fs'
  */
 async function main() {
   // Defaults to the pipeline's output, so the common path needs no env var at all.
-  const resultPath = process.env.MERKLE_RESULT ?? 'dist/merkle-result.json'
+  const resultPath = process.env.MERKLE_RESULT ?? 'dist/distribution.json'
   const owner = process.env.DISTRIBUTOR_OWNER
   const windowSeconds = Number(process.env.CLAIM_WINDOW_SECONDS ?? 31536000)
   const proxy = process.env.PROXY
