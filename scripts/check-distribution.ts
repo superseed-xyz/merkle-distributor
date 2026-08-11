@@ -2,12 +2,12 @@ import 'dotenv/config'
 import { program } from 'commander'
 import fs from 'fs'
 import { getAddress, JsonRpcProvider } from 'ethers'
-import { MerkleDistributorInfo, SnapshotEntry } from '../src/parse-balance-map'
+import { Distribution, SnapshotEntry } from '../src/parse-balance-map'
 
 program
   .version('1.0.0')
   .requiredOption('-i, --input <path>', 'the merkle input that was fed to generate-merkle-root')
-  .requiredOption('-r, --result <path>', 'the generate-merkle-root output')
+  .requiredOption('-d, --distribution <path>', 'the generate-merkle-root output')
   .option('-a, --address <address>', 'on-chain address that must hold at least tokenTotal')
   .option('--rpc <url>', 'JSON-RPC endpoint for the balance check', process.env.MAINNET_RPC_URL)
 
@@ -15,7 +15,7 @@ program.parse(process.argv)
 const options = program.opts()
 
 const input: SnapshotEntry[] = JSON.parse(fs.readFileSync(options.input, 'utf8'))
-const result: MerkleDistributorInfo = JSON.parse(fs.readFileSync(options.result, 'utf8'))
+const distribution: Distribution = JSON.parse(fs.readFileSync(options.distribution, 'utf8'))
 
 const failures: string[] = []
 const fail = (message: string) => failures.push(message)
@@ -29,29 +29,29 @@ for (const entry of input) {
 }
 
 for (const [address, amount] of inputByAddress) {
-  const claim = result.claims[address]
+  const claim = distribution.claims[address]
   if (!claim) {
     fail(`missing claim for ${address}`)
     continue
   }
   if (BigInt(claim.amount) !== amount) {
-    fail(`amount mismatch for ${address}: input ${amount}, result ${claim.amount}`)
+    fail(`amount mismatch for ${address}: input ${amount}, distribution ${claim.amount}`)
   }
 }
 
-// 2. No extras in the result.
-for (const address of Object.keys(result.claims)) {
-  if (!inputByAddress.has(address)) fail(`result contains ${address}, which is not in the input`)
+// 2. No extras in the distribution.
+for (const address of Object.keys(distribution.claims)) {
+  if (!inputByAddress.has(address)) fail(`distribution contains ${address}, which is not in the input`)
 }
 
 // 3. tokenTotal equals the input sum.
 const inputSum = [...inputByAddress.values()].reduce((a, b) => a + b, 0n)
-if (BigInt(result.tokenTotal) !== inputSum) {
-  fail(`tokenTotal mismatch: input sums to ${inputSum}, result reports ${result.tokenTotal}`)
+if (BigInt(distribution.tokenTotal) !== inputSum) {
+  fail(`tokenTotal mismatch: input sums to ${inputSum}, distribution reports ${distribution.tokenTotal}`)
 }
 
 // 4. Indices form a contiguous 0..n-1.
-const indices = Object.values(result.claims)
+const indices = Object.values(distribution.claims)
   .map((c) => c.index)
   .sort((a, b) => a - b)
 for (let i = 0; i < indices.length; i++) {
@@ -91,8 +91,8 @@ async function main() {
   }
 
   console.log(`recipients   : ${inputByAddress.size}`)
-  console.log(`tokenTotal   : ${result.tokenTotal} wei`)
-  console.log(`merkleRoot   : ${result.merkleRoot}`)
+  console.log(`tokenTotal   : ${distribution.tokenTotal} wei`)
+  console.log(`merkleRoot   : ${distribution.merkleRoot}`)
 
   if (failures.length) {
     console.error(`\n${failures.length} check(s) FAILED:`)

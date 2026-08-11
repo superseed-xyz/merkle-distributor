@@ -68,7 +68,7 @@ recipients : 10518 (17286 below the floor, dropped)
 
 Four stages run, stopping at the first inconsistency: normalise and validate the
 snapshot, build the tree, re-verify every proof and reconstruct the root by an
-independent implementation, then cross-check the result against the input. If `PROXY`
+independent implementation, then cross-check the distribution against the recipients. If `PROXY`
 is set it also confirms that address holds at least `tokenTotal`.
 
 Guards worth using when you know what to expect:
@@ -130,7 +130,7 @@ are all set, so it is inert in CI.
 
 ## Test fixtures
 
-`test/fixtures/example-input.json` and `golden-example-result.json` are the golden
+`test/fixtures/example-input.json` and `golden-example-distribution.json` are the golden
 fixture `parseBalanceMap` is checked against. `test/fixtures/new_example.json` is not
 used by any test; it is kept only as the pre-migration source data
 (`address`/`earnings`/`reasons`) that `example-input.json` was derived from, so the

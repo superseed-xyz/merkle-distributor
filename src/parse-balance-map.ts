@@ -8,7 +8,7 @@ export interface SnapshotEntry {
 }
 
 /** The blob that fully describes a distribution. Sufficient to rebuild the whole tree. */
-export interface MerkleDistributorInfo {
+export interface Distribution {
   merkleRoot: string
   /** Sum of all amounts, wei as a decimal string. */
   tokenTotal: string
@@ -24,7 +24,7 @@ export interface MerkleDistributorInfo {
 
 const DECIMAL = /^[0-9]+$/
 
-export function parseBalanceMap(entries: SnapshotEntry[]): MerkleDistributorInfo {
+export function parseBalanceMap(entries: SnapshotEntry[]): Distribution {
   if (!Array.isArray(entries)) throw new Error('Expected an array of { address, amount }')
   if (entries.length === 0) throw new Error('Expected at least one entry')
 
@@ -51,7 +51,7 @@ export function parseBalanceMap(entries: SnapshotEntry[]): MerkleDistributorInfo
 
   const tree = new BalanceTree(sortedAddresses.map((account) => ({ account, amount: dataByAddress[account] })))
 
-  const claims = sortedAddresses.reduce<MerkleDistributorInfo['claims']>((memo, address, index) => {
+  const claims = sortedAddresses.reduce<Distribution['claims']>((memo, address, index) => {
     const amount = dataByAddress[address]
     memo[address] = {
       index,
