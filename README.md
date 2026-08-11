@@ -8,11 +8,11 @@ The ERC20 contracts are unchanged in behaviour; `MerkleDistributorETH` is new.
 
 ## Contracts
 
-| Contract                        | Distributes | Notes                                                                                                               |
-| ------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| `MerkleDistributor`             | ERC20       | the original                                                                                                        |
-| `MerkleDistributorWithDeadline` | ERC20       | adds a claim window and an owner sweep                                                                              |
-| `MerkleDistributorETH`          | native ETH  | claim window, owner sweep, built to run behind an existing proxy — see [docs/architecture.md](docs/architecture.md) |
+| Contract                        | Distributes | Notes                                                                                                              |
+| ------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `MerkleDistributor`             | ERC20       | the original                                                                                                       |
+| `MerkleDistributorWithDeadline` | ERC20       | adds a claim window and an owner sweep                                                                             |
+| `MerkleDistributorETH`          | native ETH  | claim window, owner sweep, built to run behind an existing proxy. See [docs/architecture.md](docs/architecture.md) |
 
 ## Setup
 
@@ -35,10 +35,10 @@ yarn pipeline path/to/snapshot.csv --min-eth 0.0001
 
 That runs four stages and stops at the first inconsistency:
 
-1. `build-merkle-input.mjs` — normalise and validate into `[{address, amount}]`, decimal wei
-2. `generate-merkle-root.ts` — build the tree
-3. `verify-merkle-root.ts` — re-verify every proof and reconstruct the root independently
-4. `check-distribution.ts` — cross-check the result against the input
+1. `build-merkle-input.mjs`: normalise and validate into `[{address, amount}]`, decimal wei
+2. `generate-merkle-root.ts`: build the tree
+3. `verify-merkle-root.ts`: re-verify every proof and reconstruct the root independently
+4. `check-distribution.ts`: cross-check the result against the input
 
 Output lands in `build/merkle-result.json`.
 
@@ -64,7 +64,7 @@ npx ts-node scripts/enumerate-unclaimable.ts -i build/merkle-input.json
 by a `0x` prefix and decodes it; anything without that prefix is read as decimal. This
 means an accidental `0x` typo is caught, but it also means a value that was _meant_ to
 be decimal and happens to start with `0x` would silently be read as hex. To rule that
-out entirely, pass `--amount-format decimal`, which rejects hex outright — use it
+out entirely, pass `--amount-format decimal`, which rejects hex outright. Use it
 whenever the input is not supposed to contain any hex amounts, since a hex string
 misread as decimal (or vice versa) inflates or shrinks the value by ~4096× with no error.
 
@@ -105,7 +105,7 @@ are all set, so it is inert in CI.
 
 `test/fixtures/example-input.json` and `golden-example-result.json` are the golden
 fixture `parseBalanceMap` is checked against. `test/fixtures/new_example.json` is not
-used by any test — it is kept only as the pre-migration source data
+used by any test; it is kept only as the pre-migration source data
 (`address`/`earnings`/`reasons`) that `example-input.json` was derived from, so the
 golden fixture can be regenerated from it if `parseBalanceMap`'s input format ever
 needs to change again.

@@ -1,7 +1,7 @@
 import { getAddress, isAddress } from 'ethers'
 import BalanceTree from './balance-tree'
 
-/** One snapshot row. `amount` is wei as a DECIMAL string — never hex, never a number. */
+/** One snapshot row. `amount` is wei as a DECIMAL string. Never hex, never a number. */
 export interface SnapshotEntry {
   address: string
   amount: string

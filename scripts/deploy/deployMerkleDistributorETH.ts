@@ -10,7 +10,7 @@ import fs from 'fs'
  *   npx hardhat run scripts/deploy/deployMerkleDistributorETH.ts --network mainnet
  *
  * This only deploys the implementation. Installing it behind a proxy is a separate,
- * multisig-gated step — see proposeUpgrade.ts.
+ * multisig-gated step. See proposeUpgrade.ts.
  */
 async function main() {
   const resultPath = process.env.MERKLE_RESULT
@@ -31,10 +31,10 @@ async function main() {
   // permanently uncallable: neither of those addresses can act as a normal EOA/Safe
   // signer against this contract's owner-only sweep.
   if (proxyAdmin && ethers.isAddress(proxyAdmin) && ownerChecksummed === ethers.getAddress(proxyAdmin)) {
-    throw new Error('DISTRIBUTOR_OWNER must not equal PROXY_ADMIN — withdraw() would be permanently uncallable')
+    throw new Error('DISTRIBUTOR_OWNER must not equal PROXY_ADMIN; withdraw() would be permanently uncallable')
   }
   if (proxy && ethers.isAddress(proxy) && ownerChecksummed === ethers.getAddress(proxy)) {
-    throw new Error('DISTRIBUTOR_OWNER must not equal PROXY — withdraw() would be permanently uncallable')
+    throw new Error('DISTRIBUTOR_OWNER must not equal PROXY; withdraw() would be permanently uncallable')
   }
   if (!Number.isFinite(windowSeconds) || windowSeconds <= 0) throw new Error('CLAIM_WINDOW_SECONDS must be positive')
 
@@ -42,7 +42,7 @@ async function main() {
   const merkleRoot: string = result.merkleRoot
   if (!/^0x[0-9a-f]{64}$/i.test(merkleRoot)) throw new Error(`bad merkleRoot in ${resultPath}`)
   if (!result.claims || typeof result.claims !== 'object') {
-    throw new Error(`${resultPath} has no claims object — is this a generate-merkle-root output?`)
+    throw new Error(`${resultPath} has no claims object; is this a generate-merkle-root output?`)
   }
   if (typeof result.tokenTotal !== 'string' || !/^[0-9]+$/.test(result.tokenTotal)) {
     throw new Error(`${resultPath} has no valid decimal tokenTotal`)
@@ -70,9 +70,9 @@ async function main() {
     if (balance < tokenTotal) {
       throw new Error(`FUNDING_ADDRESS ${fundingAddress} holds ${balance} wei, less than tokenTotal ${tokenTotal} wei`)
     }
-    console.log(`funding     : ${fundingAddress} holds ${balance} wei — covers tokenTotal (PASS)`)
+    console.log(`funding     : ${fundingAddress} holds ${balance} wei, covers tokenTotal (PASS)`)
   } else {
-    console.log('funding     : FUNDING_ADDRESS not set — funding balance check SKIPPED')
+    console.log('funding     : FUNDING_ADDRESS not set, funding balance check SKIPPED')
   }
 
   const factory = await ethers.getContractFactory('MerkleDistributorETH')

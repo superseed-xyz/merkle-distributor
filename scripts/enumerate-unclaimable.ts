@@ -39,7 +39,7 @@ async function canReceive(address: string, amount: bigint): Promise<boolean> {
 // EIP-7702 delegation designator: 0xef0100 followed by a 20-byte address = 23 bytes.
 // As of 2026 an ordinary EOA may carry one, so `getCode() !== '0x'` no longer means
 // "contract". Whether such an account accepts plain ETH depends on its delegate, so it
-// still must be probed — but counting it as a contract would badly misrepresent how much
+// still must be probed, but counting it as a contract would badly misrepresent how much
 // manual review a recipient list needs.
 const isDelegatedEoa = (code: string) => code.startsWith('0xef0100') && code.length === 2 + 23 * 2
 
@@ -86,7 +86,7 @@ async function main() {
   console.log(`unclaimable    : ${unclaimable.length}`)
   console.log(`stranded       : ${stranded} wei (${formatEther(stranded)} ETH)`)
   if (unknown.length) {
-    console.log(`NOT CHECKED    : ${unknown.length} (RPC errors — re-run before trusting the figures above)`)
+    console.log(`NOT CHECKED    : ${unknown.length} (RPC errors; re-run before trusting the figures above)`)
     for (const u of unknown.slice(0, 10)) console.log(`  ${u.address}  ${u.error}`)
   }
 

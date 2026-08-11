@@ -22,7 +22,7 @@ export default class BalanceTree {
     return pair.equals(root)
   }
 
-  // keccak256(abi.encodePacked(index, account, amount)) — must match the contract.
+  // keccak256(abi.encodePacked(index, account, amount)). Must match the contract.
   public static toNode(index: number | bigint, account: string, amount: bigint): Buffer {
     const hex = solidityPackedKeccak256(['uint256', 'address', 'uint256'], [index, account, amount])
     return Buffer.from(hex.slice(2), 'hex')

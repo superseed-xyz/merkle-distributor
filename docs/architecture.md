@@ -1,6 +1,6 @@
 # Architecture
 
-Design notes for `MerkleDistributorETH`. Chain-agnostic — no deployment-specific
+Design notes for `MerkleDistributorETH`. Chain-agnostic: no deployment-specific
 addresses appear here or anywhere else in this repository.
 
 ## Why this contract exists
@@ -25,11 +25,11 @@ touching no storage at all. This buys:
 
 - no `initialize()` call, so no initialization front-running window;
 - no configuration in storage, so nothing to collide with the proxy's history;
-- cheaper claims — `merkleRoot` is a `PUSH32`, not an `SLOAD`.
+- cheaper claims, since `merkleRoot` is a `PUSH32`, not an `SLOAD`.
 
 Changing the root later means deploying a new implementation and performing one upgrade.
 That is the same ceremony as calling a setter would be, since only the proxy admin could
-call a setter — identical capability, smaller attack surface.
+call a setter. Identical capability, smaller attack surface.
 
 For the same reason this contract does **not** inherit OpenZeppelin `Ownable`: it stores
 the owner in slot 0, which in an already-used proxy is occupied. `owner` is an immutable.
@@ -55,11 +55,11 @@ The namespace carries a generation number, mirrored by the public `STORAGE_VERSI
 constant. It exists because a claim index is a position in _one specific tree_, which
 creates two opposite ways to get a rotation wrong:
 
-| What you do                                                                 | What happens                                                                                                                               |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| New root, **same** namespace                                                | Index _n_ now means a different address. The old bitmap marks the wrong entries claimed — some people blocked, others able to claim twice. |
-| New root, **new** namespace, tree rebuilt from everyone                     | Bitmap starts empty, so anyone who already claimed under the old root can claim **again**.                                                 |
-| New root, **new** namespace, tree rebuilt from **unclaimed addresses only** | Correct.                                                                                                                                   |
+| What you do                                                                 | What happens                                                                                                                              |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| New root, **same** namespace                                                | Index _n_ now means a different address. The old bitmap marks the wrong entries claimed: some people blocked, others able to claim twice. |
+| New root, **new** namespace, tree rebuilt from everyone                     | Bitmap starts empty, so anyone who already claimed under the old root can claim **again**.                                                |
+| New root, **new** namespace, tree rebuilt from **unclaimed addresses only** | Correct.                                                                                                                                  |
 
 So rotating is a three-part change that must move together: bump the `.vN` suffix, bump
 `STORAGE_VERSION`, recompute `STORAGE_SLOT`. The storage-layout test derives the namespace
@@ -67,7 +67,7 @@ from `STORAGE_VERSION` and asserts the result equals the literal, so bumping one
 the others fails the suite rather than silently pointing the bitmap at an unrelated slot.
 
 Deploying a new implementation with the **same** root and namespace is safe and preserves
-every claim — that is the ordinary upgrade path for fixing an unrelated bug.
+every claim. That is the ordinary upgrade path for fixing an unrelated bug.
 
 A fork should change the `0xnikolas` prefix to its own and recompute:
 
@@ -79,7 +79,7 @@ node -e "const {keccak256,toUtf8Bytes,AbiCoder,toBeHex}=require('ethers');
 
 ### `receive()` is mandatory
 
-An OP-Stack `Proxy` delegates plain transfers — a zero-calldata send runs the
+An OP-Stack `Proxy` delegates plain transfers: a zero-calldata send runs the
 _implementation's_ `receive()`. Without a payable `receive()` here, every ETH transfer to
 the proxy address would revert.
 
@@ -89,7 +89,7 @@ the proxy address would revert.
   `account`, never to `msg.sender`.
 - **Checks-effects-interactions.** The claimed bit is set before the external call, so a
   reentrant claim on the same index hits `AlreadyClaimed`. No reentrancy guard is needed.
-- **Leaf format.** `keccak256(abi.encodePacked(index, account, amount))` — 84 bytes,
+- **Leaf format.** `keccak256(abi.encodePacked(index, account, amount))` is 84 bytes,
   which can never collide with a 64-byte internal node, so there is no second-preimage
   attack.
 
@@ -111,7 +111,7 @@ claimants before it closes.
 The two windows are disjoint by one second, deliberately. `claim()` allows
 `block.timestamp <= endTime`; `withdraw()` requires `block.timestamp > endTime`. If
 `withdraw()` used `>=`, both would be callable in the block at exactly `endTime` and the
-owner could sweep the balance in the same block as — and ahead of — a final claim, which
+owner could sweep the balance in the same block as, and ahead of, a final claim, which
 would then revert with `TransferFailed`. Two tests pin this boundary: `withdraw` reverts
 at exactly `endTime`, and succeeds one second later.
 

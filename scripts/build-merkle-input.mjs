@@ -146,7 +146,7 @@ let dropped = 0
 for (const [i, row] of rows.entries()) {
   if (typeof row[amountColumn] === 'number') {
     throw new Error(
-      `row ${i}: amount must be a STRING, not a JSON number — ` +
+      `row ${i}: amount must be a STRING, not a JSON number; ` +
         `numeric literals lose precision above 2^53 (got ${row[amountColumn]})`
     )
   }

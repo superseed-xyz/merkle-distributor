@@ -126,7 +126,7 @@ describe('build-merkle-input', () => {
 
   it('rejects a mixed-case address with a broken EIP-55 checksum', () => {
     // Same address as above with one character's case flipped: still mixed-case,
-    // so it carries checksum information — and that information says this is wrong.
+    // so it carries checksum information, and that information says this is wrong.
     const broken = '0x5aaeb6053F3E94C9b9A09f33669435E7Ef1BeAed'
     const p = writeTemp('checksum-bad.json', JSON.stringify([{ address: broken, amount: '1' }]))
     expect(runExpectingFailure([p])).to.match(/checksum/i)

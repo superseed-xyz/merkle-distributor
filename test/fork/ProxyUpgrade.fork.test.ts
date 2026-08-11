@@ -17,7 +17,7 @@ const configured = Boolean(PROXY && PROXY_ADMIN && ADMIN_OWNER && process.env.MA
 ;(configured ? describe : describe.skip)('proxy upgrade rehearsal (fork)', () => {
   it('replaces the implementation, preserves the balance, and pays a claim from it', async () => {
     // Prove we really are on a fork: the proxy must already have code and an admin set.
-    expect(await ethers.provider.getCode(PROXY!), 'no code at FORK_PROXY — is forking on?').to.not.equal('0x')
+    expect(await ethers.provider.getCode(PROXY!), 'no code at FORK_PROXY; is forking on?').to.not.equal('0x')
 
     const [deployer, alice, bob] = await ethers.getSigners()
 

@@ -3,7 +3,7 @@ import { Interface, getAddress, isAddress, ZeroAddress } from 'ethers'
 
 /**
  * Emits a Safe Transaction Builder JSON for installing an implementation behind an
- * OP-Stack proxy via its ProxyAdmin. Nothing is broadcast — a multisig executes it.
+ * OP-Stack proxy via its ProxyAdmin. Nothing is broadcast; a multisig executes it.
  *
  *   PROXY=0x… PROXY_ADMIN=0x… IMPLEMENTATION=0x… CHAIN_ID=1 \
  *   npx ts-node scripts/deploy/proposeUpgrade.ts -o upgrade.json
@@ -26,13 +26,13 @@ const proxyAdmin = requireAddress('PROXY_ADMIN')
 const implementation = requireAddress('IMPLEMENTATION')
 
 if (proxy === implementation) {
-  throw new Error('PROXY and IMPLEMENTATION are the same address — a proxy cannot be its own implementation')
+  throw new Error('PROXY and IMPLEMENTATION are the same address; a proxy cannot be its own implementation')
 }
 if (proxy === proxyAdmin) {
-  throw new Error('PROXY and PROXY_ADMIN are the same address — check which is which')
+  throw new Error('PROXY and PROXY_ADMIN are the same address; check which is which')
 }
 if (implementation === proxyAdmin) {
-  throw new Error('IMPLEMENTATION and PROXY_ADMIN are the same address — check which is which')
+  throw new Error('IMPLEMENTATION and PROXY_ADMIN are the same address; check which is which')
 }
 
 const chainId = process.env.CHAIN_ID ?? '1'
