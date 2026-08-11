@@ -37,8 +37,17 @@ if (implementation === proxyAdmin) {
 
 const chainId = process.env.CHAIN_ID ?? '1'
 
+// This script emits the payload a multisig signs to move ~85 ETH, so a mistyped
+// invocation must fail loudly rather than with a low-signal Node type error.
 const outIndex = process.argv.indexOf('-o')
-const outPath = outIndex === -1 ? 'upgrade.json' : process.argv[outIndex + 1]
+let outPath = 'upgrade.json'
+if (outIndex !== -1) {
+  const candidate = process.argv[outIndex + 1]
+  if (!candidate || candidate.startsWith('-')) {
+    throw new Error('-o requires a file path, e.g. -o upgrade.json')
+  }
+  outPath = candidate
+}
 
 const iface = new Interface(PROXY_ADMIN_ABI)
 const data = iface.encodeFunctionData('upgrade', [proxy, implementation])

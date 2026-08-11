@@ -70,8 +70,13 @@ async function main() {
       // synchronous failure already accumulated above would go unprinted, and an
       // operator would fix their connectivity, re-run, and never learn the data
       // was also wrong. Degrade it to just another entry in the failure list.
+      // Held so it can be destroyed: ethers v6 keeps a background network-detection
+      // timer alive, which would stop the process exiting on the clean path. Today the
+      // explicit process.exit() calls below happen to mask that, but relying on them
+      // makes termination an accident rather than a guarantee.
+      const provider = new JsonRpcProvider(options.rpc)
       try {
-        const balance = await new JsonRpcProvider(options.rpc).getBalance(options.address)
+        const balance = await provider.getBalance(options.address)
         if (balance < inputSum) {
           fail(`${options.address} holds ${balance} wei, less than tokenTotal ${inputSum} wei`)
         } else {
@@ -79,6 +84,8 @@ async function main() {
         }
       } catch (e) {
         fail(`balance check against ${options.rpc} failed: ${(e as Error).message}`)
+      } finally {
+        provider.destroy()
       }
     }
   }
