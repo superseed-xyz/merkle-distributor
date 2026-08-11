@@ -19,13 +19,21 @@ error ZeroOwner();
 ///      survive delegatecall), and the only storage this contract touches is a single
 ///      ERC-7201 namespaced struct. Nothing here reads or writes the proxy's legacy slots.
 contract MerkleDistributorETH {
-    /// @custom:storage-location erc7201:superseed.merkledistributor.eth
+    /// @custom:storage-location erc7201:0xnikolas.merkledistributor.eth
     struct DistributorStorage {
         mapping(uint256 => uint256) claimedBitMap;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("superseed.merkledistributor.eth")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant STORAGE_SLOT = 0xbd41cceab922f36bac0cf81de847cd25a494caecc49165e378ce2a722e723100;
+    // keccak256(abi.encode(uint256(keccak256("0xnikolas.merkledistributor.eth")) - 1)) & ~bytes32(uint256(0xff))
+    //
+    // Forks SHOULD change this namespace to their own, and MUST recompute the constant to match:
+    //   node -e "const {keccak256,toUtf8Bytes,AbiCoder,toBeHex}=require('ethers');
+    //     const i=BigInt(keccak256(toUtf8Bytes('<your.namespace>')))-1n;
+    //     console.log(toBeHex(BigInt(keccak256(AbiCoder.defaultAbiCoder().encode(['uint256'],[i])))&~0xffn,32))"
+    // The storage-layout test asserts the literal below matches the namespace above, so a
+    // namespace change without a recomputed constant fails the suite rather than silently
+    // pointing the claim bitmap at someone else's slot.
+    bytes32 private constant STORAGE_SLOT = 0xf22f1ade672922e65654a2754b03b255798248be9f1c474371dd8a173dea3e00;
 
     bytes32 public immutable merkleRoot;
     uint256 public immutable endTime;
@@ -87,9 +95,12 @@ contract MerkleDistributorETH {
     }
 
     /// @notice Sweeps everything left to `owner`, but only once the claim window has closed.
+    /// @dev Strictly `>` endTime, mirroring `claim`'s `<=`. If this used `>=`, both functions
+    ///      would be callable in the block at exactly `endTime`, letting the owner front-run a
+    ///      final claim. The two windows must not overlap by even one block.
     function withdraw() external {
         if (msg.sender != owner) revert NotOwner();
-        if (block.timestamp < endTime) revert NoWithdrawDuringClaim();
+        if (block.timestamp <= endTime) revert NoWithdrawDuringClaim();
         uint256 amount = address(this).balance;
         (bool ok, ) = owner.call{value: amount}("");
         if (!ok) revert TransferFailed();

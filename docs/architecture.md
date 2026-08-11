@@ -39,7 +39,7 @@ the owner in slot 0, which in an already-used proxy is occupied. `owner` is an i
 The claimed bitmap is the only persistent state. It lives at
 
 ```
-keccak256(abi.encode(uint256(keccak256("superseed.merkledistributor.eth")) - 1)) & ~bytes32(uint256(0xff))
+keccak256(abi.encode(uint256(keccak256("0xnikolas.merkledistributor.eth")) - 1)) & ~bytes32(uint256(0xff))
 ```
 
 A default layout would place the bitmap at slot 0 and read the previous contract's

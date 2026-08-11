@@ -42,7 +42,7 @@ describe('MerkleDistributorETH', () => {
       const proof = tree.getProof(0, alice.address, 100n)
 
       const expectedSlot = (() => {
-        const inner = BigInt(ethers.keccak256(ethers.toUtf8Bytes('superseed.merkledistributor.eth'))) - 1n
+        const inner = BigInt(ethers.keccak256(ethers.toUtf8Bytes('0xnikolas.merkledistributor.eth'))) - 1n
         return BigInt(ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(['uint256'], [inner]))) & ~0xffn
       })()
 
@@ -193,6 +193,24 @@ describe('MerkleDistributorETH', () => {
       await expect((distributor.connect(owner) as unknown as Contract).withdraw()).to.be.revertedWithCustomError(
         distributor,
         'NoWithdrawDuringClaim'
+      )
+    })
+
+    it('rejects withdraw in the block at exactly endTime, so it cannot overlap a final claim', async () => {
+      const { distributor, owner, endTime } = await loadFixture(twoAccountFixture)
+      await time.setNextBlockTimestamp(endTime)
+      await expect((distributor.connect(owner) as unknown as Contract).withdraw()).to.be.revertedWithCustomError(
+        distributor,
+        'NoWithdrawDuringClaim'
+      )
+    })
+
+    it('allows withdraw one second after endTime', async () => {
+      const { distributor, owner, endTime } = await loadFixture(twoAccountFixture)
+      await time.setNextBlockTimestamp(endTime + 1)
+      await expect((distributor.connect(owner) as unknown as Contract).withdraw()).to.changeEtherBalance(
+        owner.address,
+        1000n
       )
     })
 
