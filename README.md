@@ -24,72 +24,99 @@ yarn compile
 yarn test
 ```
 
-## Building a distribution
+## The whole deployment, start to finish
 
-The input is a snapshot listing addresses and wei amounts, as CSV or JSON. One command
-takes it all the way to a verified result:
-
-```bash
-yarn pipeline path/to/snapshot.csv --min-eth 0.0001
-```
-
-That runs four stages and stops at the first inconsistency:
-
-1. `build-merkle-input.mjs`: normalise and validate into `[{address, amount}]`, decimal wei
-2. `generate-merkle-root.ts`: build the tree
-3. `verify-merkle-root.ts`: re-verify every proof and reconstruct the root independently
-4. `check-distribution.ts`: cross-check the result against the input
-
-Output lands in `build/merkle-result.json`.
-
-Useful guards when you know what to expect:
+Set five values in `.env` once (`PROXY`, `PROXY_ADMIN`, `DISTRIBUTOR_OWNER`,
+`MAINNET_RPC_URL`, `PRIVATE_KEY`), then:
 
 ```bash
-yarn pipeline snapshot.csv --min-eth 0.0001 --expect-count 1234 --expect-total 5000000000000000000
+# 1. build the distribution from a snapshot
+yarn distribution ../chain-data-snapshot/eth-holders-snapshot.json --min-eth 0.0001
+
+# 2. hand the proofs to the claim interface
+cp dist/merkle-result.json ../eth-claim-portal/data/
+
+# 3. deploy the implementation
+yarn deploy:mainnet
+
+# 4. build the transaction the multisig signs
+yarn propose-upgrade
+
+# 5. import dist/upgrade.json into the Safe Transaction Builder, sign, execute
 ```
 
-Before deploying an ETH distribution, check for recipients that cannot accept ETH:
+Everything lands in `dist/`, and each step reads the previous step's output, so no
+addresses or file paths are copied by hand:
+
+| File                      | Written by | Contains                                              |
+| ------------------------- | ---------- | ----------------------------------------------------- |
+| `dist/merkle-input.json`  | step 1     | the validated, filtered `{address, amount}` set       |
+| `dist/merkle-result.json` | step 1     | root, tokenTotal and every proof                      |
+| `dist/SUMMARY.txt`        | step 1     | what was built, and **what the filter excluded**      |
+| `dist/deployment.json`    | step 3     | implementation address, root, endTime, owner, tx hash |
+| `dist/upgrade.json`       | step 4     | the Safe batch                                        |
+
+### Step 1 in detail
+
+The snapshot is the complete holder record. **Any dust floor is a processing decision
+applied here**, not something baked into the data, so `SUMMARY.txt` always records how
+many recipients the filter removed:
+
+```
+recipients : 10518 (17286 below the floor, dropped)
+```
+
+Four stages run, stopping at the first inconsistency: normalise and validate the
+snapshot, build the tree, re-verify every proof and reconstruct the root by an
+independent implementation, then cross-check the result against the input. If `PROXY`
+is set it also confirms that address holds at least `tokenTotal`.
+
+Guards worth using when you know what to expect:
 
 ```bash
-npx ts-node scripts/enumerate-unclaimable.ts -i build/merkle-input.json
+yarn distribution snapshot.json --min-eth 0.0001 --expect-count 10518 --expect-total 50449251009702811233
 ```
 
-### Input format
+Before deploying, check for recipients that cannot receive ETH at all — their claim
+would revert, and the figure belongs in the runbook:
+
+```bash
+yarn enumerate-unclaimable -i dist/merkle-input.json
+```
+
+### Step 3 in detail
+
+`yarn deploy:mainnet` refuses to spend gas on a doomed deploy: it rejects a zero
+`DISTRIBUTOR_OWNER`, rejects an owner equal to `PROXY` or `PROXY_ADMIN` (either would
+make `withdraw()` permanently uncallable), and confirms the funding address covers
+`tokenTotal`. Then verify it:
+
+```bash
+npx hardhat verify --network mainnet <address> <merkleRoot> <endTime> <owner>
+```
+
+The exact command is printed for you, with the arguments filled in.
+
+### Step 4 in detail
+
+Nothing is ever broadcast. `yarn propose-upgrade` only writes a file. It refuses zero
+addresses and refuses any two of proxy/admin/implementation being equal, so a mistyped
+variable fails loudly instead of producing a plausible, signable, catastrophic
+transaction.
+
+Before signing, the four signers should confirm: `to` is the **ProxyAdmin** and not the
+proxy, the selector is `0x99a88ec4`, and the arguments are in `(proxy, implementation)`
+order. The script prints this checklist.
+
+## Input format
 
 ```json
 [{ "address": "0x1111…", "amount": "1000000000000000000" }]
 ```
 
-`amount` is **wei as a decimal string**. The default `--amount-format auto` detects hex
-by a `0x` prefix and decodes it; anything without that prefix is read as decimal. This
-means an accidental `0x` typo is caught, but it also means a value that was _meant_ to
-be decimal and happens to start with `0x` would silently be read as hex. To rule that
-out entirely, pass `--amount-format decimal`, which rejects hex outright. Use it
-whenever the input is not supposed to contain any hex amounts, since a hex string
-misread as decimal (or vice versa) inflates or shrinks the value by ~4096× with no error.
-
-## Deploying
-
-Deployment of an ETH distributor is two steps, because installing an implementation
-behind a proxy is normally multisig-gated.
-
-```bash
-# 1. deploy the implementation
-MERKLE_RESULT=build/merkle-result.json \
-DISTRIBUTOR_OWNER=0x… \
-CLAIM_WINDOW_SECONDS=31536000 \
-npx hardhat run scripts/deploy/deployMerkleDistributorETH.ts --network mainnet
-
-# 2. verify it
-npx hardhat verify --network mainnet <implementation> <merkleRoot> <endTime> <owner>
-
-# 3. emit the upgrade transaction for the multisig
-PROXY=0x… PROXY_ADMIN=0x… IMPLEMENTATION=0x… \
-npx ts-node scripts/deploy/proposeUpgrade.ts -o upgrade.json
-```
-
-Import `upgrade.json` into the Safe Transaction Builder. Nothing is ever broadcast by
-these scripts.
+`amount` is **wei as a decimal string**. Hex is auto-detected only when `0x`-prefixed;
+pass `--amount-format decimal` to reject it outright. A hex value in a decimal field
+inflates the amount ~4096x, which is why the adapter validates this hard.
 
 ## Testing against a real proxy
 
