@@ -77,7 +77,7 @@ Guards worth using when you know what to expect:
 yarn distribution snapshot.json --min-eth 0.0001 --expect-count 10518 --expect-total 50449251009702811233
 ```
 
-Before deploying, check for recipients that cannot receive ETH at all — their claim
+Before deploying, check for recipients that cannot receive ETH at all. Their claim
 would revert, and the figure belongs in the runbook:
 
 ```bash
