@@ -4,7 +4,7 @@ import path from 'path'
 import fs from 'fs'
 import os from 'os'
 
-const SCRIPT = path.join(__dirname, '../scripts/build-merkle-input.mjs')
+const SCRIPT = path.join(__dirname, '../scripts/build-recipients.mjs')
 const CSV = path.join(__dirname, 'fixtures/snapshot-sample.csv')
 
 const run = (args: string[]) => execFileSync('node', [SCRIPT, ...args], { encoding: 'utf8' })
@@ -23,7 +23,7 @@ const writeTemp = (name: string, contents: string) => {
   return p
 }
 
-describe('build-merkle-input', () => {
+describe('build-recipients', () => {
   it('converts CSV to the canonical decimal-wei array', () => {
     const out = JSON.parse(run([CSV]))
     expect(out).to.deep.equal([

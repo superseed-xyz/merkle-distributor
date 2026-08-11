@@ -7,8 +7,8 @@
  * Accepts CSV or JSON. Every amount stays a string end to end; nothing is ever
  * put through a JS Number, so no wei value can be rounded.
  *
- *   node scripts/build-merkle-input.mjs snapshot.csv > merkle-input.json
- *   node scripts/build-merkle-input.mjs snapshot.json --min-eth 0.0001 --expect-count 10518
+ *   node scripts/build-recipients.mjs snapshot.csv > recipients.json
+ *   node scripts/build-recipients.mjs snapshot.json --min-eth 0.0001 --expect-count 10518
  */
 import { readFileSync } from 'node:fs'
 import { getAddress } from 'ethers'
@@ -50,7 +50,7 @@ for (let i = 0; i < argv.length; i++) {
 
 if (!inputPath || flag('--help')) {
   process.stderr.write(
-    `usage: node build-merkle-input.mjs <input.csv|input.json> [options] > merkle-input.json\n` +
+    `usage: node build-recipients.mjs <input.csv|input.json> [options] > recipients.json\n` +
       `  --address-column <name>            default: address\n` +
       `  --amount-column <name>             default: amount\n` +
       `  --amount-format decimal|hex|auto   default: auto (0x prefix means hex)\n` +
