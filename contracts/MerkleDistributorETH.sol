@@ -13,11 +13,8 @@ error EndTimeInPast();
 error ZeroOwner();
 
 /// @notice Distributes native ETH against a merkle root.
-/// @dev Designed to be installed as the implementation behind an existing upgradeable
-///      proxy that already holds ETH and already has unrelated data in slots 0..n.
-///      Configuration is held in immutables (which live in code, not storage, and so
-///      survive delegatecall), and the only storage this contract touches is a single
-///      ERC-7201 namespaced struct. Nothing here reads or writes the proxy's legacy slots.
+/// @dev Built to run behind a proxy whose storage is already in use: config lives in
+///      immutables, state in one ERC-7201 slot. See docs/architecture.md.
 contract MerkleDistributorETH {
     /// @custom:storage-location erc7201:0xnikolas.merkledistributor.eth.v1
     struct DistributorStorage {
