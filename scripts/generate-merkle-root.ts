@@ -1,18 +1,26 @@
 import { program } from 'commander'
 import fs from 'fs'
-import { parseBalanceMap } from '../src/parse-balance-map'
+import { parseBalanceMap, SnapshotEntry } from '../src/parse-balance-map'
 
 program
-  .version('0.0.0')
-  .requiredOption(
-    '-i, --input <path>',
-    'input JSON file location containing a map of account addresses to string balances'
-  )
+  .version('1.0.0')
+  .requiredOption('-i, --input <path>', 'merkle input JSON: [{ address, amount }] with decimal wei amounts')
+  .option('-o, --output <path>', 'write the result here instead of stdout')
 
 program.parse(process.argv)
+const options = program.opts()
 
-const json = JSON.parse(fs.readFileSync(program.input, { encoding: 'utf8' }))
+const json: SnapshotEntry[] = JSON.parse(fs.readFileSync(options.input, { encoding: 'utf8' }))
+if (!Array.isArray(json)) throw new Error('Expected an array of { address, amount }')
 
-if (typeof json !== 'object') throw new Error('Invalid JSON')
+const result = parseBalanceMap(json)
+const serialised = JSON.stringify(result, null, 2) + '\n'
 
-console.log(JSON.stringify(parseBalanceMap(json)))
+if (options.output) fs.writeFileSync(options.output, serialised)
+else process.stdout.write(serialised)
+
+process.stderr.write(
+  `merkleRoot : ${result.merkleRoot}\n` +
+    `recipients : ${Object.keys(result.claims).length}\n` +
+    `tokenTotal : ${result.tokenTotal} wei\n`
+)

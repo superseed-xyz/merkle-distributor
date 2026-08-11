@@ -1,6 +1,10 @@
 node_modules/
 build/
-wrangler.toml
 artifacts/
 .idea
 cache/
+dist/
+typechain-types/
+.env
+.env.local
+upgrade.json
