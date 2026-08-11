@@ -4,23 +4,31 @@ import fs from 'fs'
 /**
  * Deploys the MerkleDistributorETH implementation.
  *
- *   MERKLE_RESULT=./result.json \
- *   DISTRIBUTOR_OWNER=0x… \
- *   CLAIM_WINDOW_SECONDS=31536000 \
- *   npx hardhat run scripts/deploy/deployMerkleDistributorETH.ts --network mainnet
+ *   yarn deploy:mainnet
+ *
+ * Reads dist/merkle-result.json (whatever `yarn distribution` produced) and the
+ * addresses from .env. Writes dist/deployment.json so the upgrade step can pick the
+ * implementation address up on its own instead of the operator copying it by hand.
  *
  * This only deploys the implementation. Installing it behind a proxy is a separate,
  * multisig-gated step. See proposeUpgrade.ts.
  */
 async function main() {
-  const resultPath = process.env.MERKLE_RESULT
+  // Defaults to the pipeline's output, so the common path needs no env var at all.
+  const resultPath = process.env.MERKLE_RESULT ?? 'dist/merkle-result.json'
   const owner = process.env.DISTRIBUTOR_OWNER
   const windowSeconds = Number(process.env.CLAIM_WINDOW_SECONDS ?? 31536000)
-  const fundingAddress = process.env.FUNDING_ADDRESS
   const proxy = process.env.PROXY
   const proxyAdmin = process.env.PROXY_ADMIN
+  // The proxy is the address that pays claims, so it is the funding address too.
+  const fundingAddress = process.env.FUNDING_ADDRESS ?? proxy
 
-  if (!resultPath) throw new Error('MERKLE_RESULT is required')
+  if (!fs.existsSync(resultPath)) {
+    throw new Error(
+      `${resultPath} not found. Run \`yarn distribution <snapshot>\` first, ` +
+        `or set MERKLE_RESULT to point at an existing result file.`
+    )
+  }
   if (!owner) throw new Error('DISTRIBUTOR_OWNER is required')
   if (!ethers.isAddress(owner)) throw new Error(`DISTRIBUTOR_OWNER is not an address: ${owner}`)
   // The constructor reverts with ZeroOwner, but catching it here costs nothing,
@@ -80,14 +88,30 @@ async function main() {
   await distributor.waitForDeployment()
   const address = await distributor.getAddress()
 
-  console.log(`\nimplementation deployed: ${address}`)
+  // Recorded so proposeUpgrade can read the address itself. Copying a 42-character
+  // address between two commands by hand is exactly how the wrong contract gets
+  // installed behind a proxy holding real money.
+  const artifact = {
+    implementation: address,
+    merkleRoot,
+    tokenTotal: result.tokenTotal,
+    recipients: Object.keys(result.claims).length,
+    endTime,
+    owner: ownerChecksummed,
+    network: network.name,
+    chainId: Number((await ethers.provider.getNetwork()).chainId),
+    deployedAt: new Date().toISOString(),
+    deploymentTx: distributor.deploymentTransaction()?.hash ?? null,
+  }
+  fs.mkdirSync('dist', { recursive: true })
+  fs.writeFileSync('dist/deployment.json', JSON.stringify(artifact, null, 2) + '\n')
+
+  console.log(`\nimplementation : ${address}`)
+  console.log(`wrote          : dist/deployment.json`)
   console.log(
-    `\nverify with:\n  npx hardhat verify --network ${network.name} ${address} ${merkleRoot} ${endTime} ${owner}`
+    `\nverify:\n  npx hardhat verify --network ${network.name} ${address} ${merkleRoot} ${endTime} ${ownerChecksummed}`
   )
-  console.log(
-    `\nnext: build the upgrade transaction\n` +
-      `  PROXY=0x… PROXY_ADMIN=0x… IMPLEMENTATION=${address} npx ts-node scripts/deploy/proposeUpgrade.ts -o upgrade.json`
-  )
+  console.log(`\nnext:\n  yarn propose-upgrade`)
 }
 
 main().catch((error) => {

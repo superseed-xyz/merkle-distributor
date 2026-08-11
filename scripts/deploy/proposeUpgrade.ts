@@ -10,8 +10,24 @@ import { Interface, getAddress, isAddress, ZeroAddress } from 'ethers'
  */
 const PROXY_ADMIN_ABI = ['function upgrade(address _proxy, address _implementation) external']
 
-function requireAddress(name: string): string {
-  const value = process.env[name]
+/**
+ * IMPLEMENTATION defaults to whatever `yarn deploy:mainnet` recorded, so the operator
+ * never retypes a 42-character address between two commands. Set the env var to
+ * override (e.g. proposing an upgrade to a contract deployed earlier).
+ */
+function implementationFromArtifact(): string | undefined {
+  const p = 'dist/deployment.json'
+  if (!fs.existsSync(p)) return undefined
+  try {
+    const a = JSON.parse(fs.readFileSync(p, 'utf8'))
+    return typeof a.implementation === 'string' ? a.implementation : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function requireAddress(name: string, fallback?: string): string {
+  const value = process.env[name] ?? fallback
   if (!value) throw new Error(`${name} is required`)
   if (!isAddress(value)) throw new Error(`${name} is not an address: ${value}`)
   const parsed = getAddress(value)
@@ -23,7 +39,7 @@ function requireAddress(name: string): string {
 
 const proxy = requireAddress('PROXY')
 const proxyAdmin = requireAddress('PROXY_ADMIN')
-const implementation = requireAddress('IMPLEMENTATION')
+const implementation = requireAddress('IMPLEMENTATION', implementationFromArtifact())
 
 if (proxy === implementation) {
   throw new Error('PROXY and IMPLEMENTATION are the same address; a proxy cannot be its own implementation')
@@ -40,7 +56,7 @@ const chainId = process.env.CHAIN_ID ?? '1'
 // This script emits the payload a multisig signs to move ~85 ETH, so a mistyped
 // invocation must fail loudly rather than with a low-signal Node type error.
 const outIndex = process.argv.indexOf('-o')
-let outPath = 'upgrade.json'
+let outPath = 'dist/upgrade.json'
 if (outIndex !== -1) {
   const candidate = process.argv[outIndex + 1]
   if (!candidate || candidate.startsWith('-')) {
