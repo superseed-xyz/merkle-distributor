@@ -19,21 +19,34 @@ error ZeroOwner();
 ///      survive delegatecall), and the only storage this contract touches is a single
 ///      ERC-7201 namespaced struct. Nothing here reads or writes the proxy's legacy slots.
 contract MerkleDistributorETH {
-    /// @custom:storage-location erc7201:0xnikolas.merkledistributor.eth
+    /// @custom:storage-location erc7201:0xnikolas.merkledistributor.eth.v1
     struct DistributorStorage {
         mapping(uint256 => uint256) claimedBitMap;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("0xnikolas.merkledistributor.eth")) - 1)) & ~bytes32(uint256(0xff))
+    /// @notice Which claim-bitmap generation this implementation reads and writes.
+    /// @dev Mirrors the `.vN` suffix of the storage namespace. Exposed so an operator can
+    ///      confirm on-chain which generation a deployed implementation is bound to.
+    uint256 public constant STORAGE_VERSION = 1;
+
+    // keccak256(abi.encode(uint256(keccak256("0xnikolas.merkledistributor.eth.v1")) - 1)) & ~bytes32(uint256(0xff))
     //
-    // Forks SHOULD change this namespace to their own, and MUST recompute the constant to match:
+    // ROTATING THE MERKLE ROOT: bump the `.vN` suffix above, bump STORAGE_VERSION, and
+    // recompute this constant. A new generation starts from an all-zero bitmap, so the
+    // replacement tree MUST be built from UNCLAIMED addresses only — carrying over an
+    // already-claimed address would let it claim a second time.
+    // Reusing the same namespace with a different root is the other failure: indices are
+    // positions in one specific tree, so the old bitmap would mark the wrong entries.
+    //
+    // Recompute with:
     //   node -e "const {keccak256,toUtf8Bytes,AbiCoder,toBeHex}=require('ethers');
-    //     const i=BigInt(keccak256(toUtf8Bytes('<your.namespace>')))-1n;
+    //     const i=BigInt(keccak256(toUtf8Bytes('<namespace>')))-1n;
     //     console.log(toBeHex(BigInt(keccak256(AbiCoder.defaultAbiCoder().encode(['uint256'],[i])))&~0xffn,32))"
-    // The storage-layout test asserts the literal below matches the namespace above, so a
-    // namespace change without a recomputed constant fails the suite rather than silently
-    // pointing the claim bitmap at someone else's slot.
-    bytes32 private constant STORAGE_SLOT = 0xf22f1ade672922e65654a2754b03b255798248be9f1c474371dd8a173dea3e00;
+    //
+    // The storage-layout test derives the slot from the namespace and STORAGE_VERSION and
+    // asserts it equals the literal below, so bumping one without the others fails the
+    // suite rather than silently pointing the bitmap at an unrelated slot.
+    bytes32 private constant STORAGE_SLOT = 0x3c2c73883e6aaa708562d21bf91680ef9560a8a682410fce169fc4e2fa694400;
 
     bytes32 public immutable merkleRoot;
     uint256 public immutable endTime;

@@ -41,8 +41,13 @@ describe('MerkleDistributorETH', () => {
       const { distributor, tree, alice } = await loadFixture(twoAccountFixture)
       const proof = tree.getProof(0, alice.address, 100n)
 
+      // Derive the namespace from the contract's own STORAGE_VERSION rather than a
+      // hardcoded string, so bumping the version without bumping the namespace (or the
+      // slot literal) fails here instead of silently pointing the bitmap elsewhere.
+      const storageVersion = await distributor.STORAGE_VERSION()
+      const namespace = `0xnikolas.merkledistributor.eth.v${storageVersion}`
       const expectedSlot = (() => {
-        const inner = BigInt(ethers.keccak256(ethers.toUtf8Bytes('0xnikolas.merkledistributor.eth'))) - 1n
+        const inner = BigInt(ethers.keccak256(ethers.toUtf8Bytes(namespace))) - 1n
         return BigInt(ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(['uint256'], [inner]))) & ~0xffn
       })()
 
