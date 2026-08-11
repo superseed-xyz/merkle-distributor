@@ -6,7 +6,7 @@
 # The snapshot is the complete holder record. Any dust floor is a PROCESSING decision
 # applied here with --min-eth, not something baked into the data.
 #
-# Writes dist/merkle-input.json, dist/distribution.json and dist/SUMMARY.txt.
+# Writes dist/recipients.json, dist/distribution.json and dist/SUMMARY.txt.
 set -euo pipefail
 
 if [ $# -lt 1 ]; then
@@ -23,11 +23,11 @@ mkdir -p "$OUT_DIR"
 FUNDING="${DISTRIBUTION_ADDRESS:-${PROXY:-}}"
 
 echo "==> 1/4 normalising and validating the snapshot"
-node scripts/build-merkle-input.mjs "$SNAPSHOT" "$@" 2> "$OUT_DIR/.input.log" > "$OUT_DIR/merkle-input.json"
+node scripts/build-recipients.mjs "$SNAPSHOT" "$@" 2> "$OUT_DIR/.input.log" > "$OUT_DIR/recipients.json"
 cat "$OUT_DIR/.input.log"
 
 echo "==> 2/4 building the merkle tree"
-npx ts-node scripts/generate-merkle-root.ts -i "$OUT_DIR/merkle-input.json" -o "$OUT_DIR/distribution.json" 2> "$OUT_DIR/.root.log"
+npx ts-node scripts/generate-merkle-root.ts -i "$OUT_DIR/recipients.json" -o "$OUT_DIR/distribution.json" 2> "$OUT_DIR/.root.log"
 cat "$OUT_DIR/.root.log"
 
 echo "==> 3/4 re-verifying every proof and reconstructing the root independently"
@@ -35,7 +35,7 @@ npx ts-node scripts/verify-merkle-root.ts -i "$OUT_DIR/distribution.json" | tail
 
 echo "==> 4/4 cross-checking the result against the input"
 npx ts-node scripts/check-distribution.ts \
-  -i "$OUT_DIR/merkle-input.json" \
+  -i "$OUT_DIR/recipients.json" \
   -r "$OUT_DIR/distribution.json" \
   ${FUNDING:+--address "$FUNDING"}
 

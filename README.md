@@ -50,7 +50,7 @@ addresses or file paths are copied by hand:
 
 | File                     | Written by | Contains                                              |
 | ------------------------ | ---------- | ----------------------------------------------------- |
-| `dist/merkle-input.json` | step 1     | the validated, filtered `{address, amount}` set       |
+| `dist/recipients.json`   | step 1     | the validated, filtered `{address, amount}` set       |
 | `dist/distribution.json` | step 1     | root, tokenTotal and every proof                      |
 | `dist/SUMMARY.txt`       | step 1     | what was built, and **what the filter excluded**      |
 | `dist/deployment.json`   | step 3     | implementation address, root, endTime, owner, tx hash |
@@ -81,7 +81,7 @@ Before deploying, check for recipients that cannot receive ETH at all — their 
 would revert, and the figure belongs in the runbook:
 
 ```bash
-yarn enumerate-unclaimable -i dist/merkle-input.json
+yarn enumerate-unclaimable -i dist/recipients.json
 ```
 
 ### Step 3 in detail
