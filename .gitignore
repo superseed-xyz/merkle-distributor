@@ -2,6 +2,7 @@ node_modules/
 build/
 artifacts/
 .idea
+.zed/
 cache/
 dist/
 typechain-types/

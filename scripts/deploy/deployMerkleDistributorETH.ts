@@ -1,5 +1,6 @@
 import { ethers, network, run } from 'hardhat'
 import fs from 'fs'
+import { env, envOr } from '../env'
 
 /**
  * Deploys the MerkleDistributorETH implementation.
@@ -15,13 +16,13 @@ import fs from 'fs'
  */
 async function main() {
   // Defaults to the pipeline's output, so the common path needs no env var at all.
-  const distributionPath = process.env.DISTRIBUTION_FILE ?? 'dist/distribution.json'
-  const owner = process.env.DISTRIBUTOR_OWNER
-  const windowSeconds = Number(process.env.CLAIM_WINDOW_SECONDS ?? 31536000)
-  const proxy = process.env.PROXY
-  const proxyAdmin = process.env.PROXY_ADMIN
+  const distributionPath = envOr('DISTRIBUTION_FILE', 'dist/distribution.json')
+  const owner = env('DISTRIBUTOR_OWNER')
+  const windowSeconds = Number(envOr('CLAIM_WINDOW_SECONDS', '31536000'))
+  const proxy = env('PROXY')
+  const proxyAdmin = env('PROXY_ADMIN')
   // The proxy is the address that pays claims, so it is the funding address too.
-  const fundingAddress = process.env.FUNDING_ADDRESS ?? proxy
+  const fundingAddress = env('FUNDING_ADDRESS') ?? proxy
 
   if (!fs.existsSync(distributionPath)) {
     throw new Error(

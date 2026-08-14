@@ -1,5 +1,7 @@
+import 'dotenv/config'
 import fs from 'fs'
 import { Interface, getAddress, isAddress, ZeroAddress } from 'ethers'
+import { env } from '../env'
 
 /**
  * Emits a Safe Transaction Builder JSON for installing an implementation behind an
@@ -10,24 +12,26 @@ import { Interface, getAddress, isAddress, ZeroAddress } from 'ethers'
  */
 const PROXY_ADMIN_ABI = ['function upgrade(address _proxy, address _implementation) external']
 
+const ARTIFACT_PATH = 'dist/deployment.json'
+
+type DeploymentArtifact = { implementation?: unknown; chainId?: unknown; network?: unknown }
+
 /**
  * IMPLEMENTATION defaults to whatever `yarn deploy:mainnet` recorded, so the operator
  * never retypes a 42-character address between two commands. Set the env var to
  * override (e.g. proposing an upgrade to a contract deployed earlier).
  */
-function implementationFromArtifact(): string | undefined {
-  const p = 'dist/deployment.json'
-  if (!fs.existsSync(p)) return undefined
+function readArtifact(): DeploymentArtifact | undefined {
+  if (!fs.existsSync(ARTIFACT_PATH)) return undefined
   try {
-    const a = JSON.parse(fs.readFileSync(p, 'utf8'))
-    return typeof a.implementation === 'string' ? a.implementation : undefined
+    return JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8')) as DeploymentArtifact
   } catch {
     return undefined
   }
 }
 
 function requireAddress(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback
+  const value = env(name) ?? fallback
   if (!value) throw new Error(`${name} is required`)
   if (!isAddress(value)) throw new Error(`${name} is not an address: ${value}`)
   const parsed = getAddress(value)
@@ -37,9 +41,59 @@ function requireAddress(name: string, fallback?: string): string {
   return parsed
 }
 
+const artifact = readArtifact()
+const artifactImplementation = typeof artifact?.implementation === 'string' ? artifact.implementation : undefined
+
 const proxy = requireAddress('PROXY')
 const proxyAdmin = requireAddress('PROXY_ADMIN')
-const implementation = requireAddress('IMPLEMENTATION', implementationFromArtifact())
+const implementation = requireAddress('IMPLEMENTATION', artifactImplementation)
+
+const chainId = env('CHAIN_ID') ?? '1'
+// chainId goes into the batch verbatim and is what a signer reads to confirm which
+// network they are authorising. Garbage here produces a misleading file rather than
+// an error, so reject anything that is not a positive integer.
+if (!/^[0-9]+$/.test(chainId) || Number(chainId) <= 0 || !Number.isSafeInteger(Number(chainId))) {
+  throw new Error(`CHAIN_ID must be a positive integer; got: ${chainId}`)
+}
+
+/** Accepts the number our deploy script writes, and a numeric string from a hand-edited artifact. */
+function parseChainId(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0 ? value : undefined
+  if (typeof value === 'string' && /^[0-9]+$/.test(value.trim())) {
+    const parsed = Number(value.trim())
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined
+  }
+  return undefined
+}
+
+// The artifact records which chain its implementation was actually deployed to. A
+// local `--network hardhat` run leaves chainId 31337 behind, and the fallback above
+// would then feed that address into a batch stamped chainId 1: a well-formed,
+// signable transaction pointing the ProxyAdmin at an address holding no code on
+// mainnet. Only enforced when the address came from the artifact; setting
+// IMPLEMENTATION explicitly is the operator taking responsibility for the pairing.
+if (!env('IMPLEMENTATION') && artifact) {
+  const recorded = parseChainId(artifact.chainId)
+  const where = typeof artifact.network === 'string' ? ` (network "${artifact.network}")` : ''
+  if (artifact.chainId === undefined || artifact.chainId === null) {
+    console.warn(
+      `warning: ${ARTIFACT_PATH} records no chainId; cannot confirm ${implementation} was deployed to chain ${chainId}`
+    )
+  } else if (recorded === undefined) {
+    // Present but unreadable. Refusing beats warning: the guard cannot do its job, and
+    // a malformed artifact is itself reason to stop before a multisig signs anything.
+    throw new Error(
+      `${ARTIFACT_PATH} records an unreadable chainId (${JSON.stringify(artifact.chainId)})${where}; ` +
+        `fix the artifact, or set IMPLEMENTATION explicitly to bypass this check.`
+    )
+  } else if (recorded !== Number(chainId)) {
+    throw new Error(
+      `${ARTIFACT_PATH} records an implementation deployed to chainId ${recorded}${where}, ` +
+        `but this batch targets chainId ${chainId}. Re-run \`yarn deploy:mainnet\` to deploy to the ` +
+        `target chain, or set IMPLEMENTATION explicitly to an address deployed there.`
+    )
+  }
+}
 
 if (proxy === implementation) {
   throw new Error('PROXY and IMPLEMENTATION are the same address; a proxy cannot be its own implementation')
@@ -50,8 +104,6 @@ if (proxy === proxyAdmin) {
 if (implementation === proxyAdmin) {
   throw new Error('IMPLEMENTATION and PROXY_ADMIN are the same address; check which is which')
 }
-
-const chainId = process.env.CHAIN_ID ?? '1'
 
 // This script emits the payload a multisig signs to move ~85 ETH, so a mistyped
 // invocation must fail loudly rather than with a low-signal Node type error.

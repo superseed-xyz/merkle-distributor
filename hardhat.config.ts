@@ -5,7 +5,28 @@ import * as dotenv from 'dotenv'
 dotenv.config()
 
 const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL ?? ''
-const PRIVATE_KEY = process.env.PRIVATE_KEY
+
+/**
+ * Hardhat validates every network in this config on every command, so a malformed
+ * PRIVATE_KEY breaks `compile` and `test` — neither of which needs a key. Accept only
+ * well-formed keys and warn otherwise, so the failure surfaces at deploy time with a
+ * readable reason instead of aborting unrelated commands with an HH8.
+ *
+ * A common cause: `.env` holding `$(op read "op://…")`, which only a shell expands.
+ * dotenv passes it through literally. Use `op run --env-file=.env -- yarn deploy:mainnet`
+ * with a bare `op://…` value instead.
+ */
+function deployerAccounts(): string[] {
+  const key = process.env.PRIVATE_KEY?.trim()
+  if (!key) return []
+  if (!/^(0x)?[0-9a-fA-F]{64}$/i.test(key)) {
+    console.warn('warning: PRIVATE_KEY is set but is not a 32-byte hex key; mainnet has no signer')
+    return []
+  }
+  // Strip any prefix before re-adding it: ethers expects a lowercase 0x, and a
+  // case-insensitive test above means "0X…" reaches here too.
+  return [`0x${key.replace(/^0x/i, '')}`]
+}
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -29,7 +50,7 @@ const config: HardhatUserConfig = {
     mainnet: {
       chainId: 1,
       url: MAINNET_RPC_URL,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      accounts: deployerAccounts(),
     },
   },
   etherscan: {
