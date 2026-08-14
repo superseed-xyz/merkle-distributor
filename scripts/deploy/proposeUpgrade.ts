@@ -12,17 +12,19 @@ import { env } from '../env'
  */
 const PROXY_ADMIN_ABI = ['function upgrade(address _proxy, address _implementation) external']
 
+const ARTIFACT_PATH = 'dist/deployment.json'
+
+type DeploymentArtifact = { implementation?: unknown; chainId?: unknown; network?: unknown }
+
 /**
  * IMPLEMENTATION defaults to whatever `yarn deploy:mainnet` recorded, so the operator
  * never retypes a 42-character address between two commands. Set the env var to
  * override (e.g. proposing an upgrade to a contract deployed earlier).
  */
-function implementationFromArtifact(): string | undefined {
-  const p = 'dist/deployment.json'
-  if (!fs.existsSync(p)) return undefined
+function readArtifact(): DeploymentArtifact | undefined {
+  if (!fs.existsSync(ARTIFACT_PATH)) return undefined
   try {
-    const a = JSON.parse(fs.readFileSync(p, 'utf8'))
-    return typeof a.implementation === 'string' ? a.implementation : undefined
+    return JSON.parse(fs.readFileSync(ARTIFACT_PATH, 'utf8')) as DeploymentArtifact
   } catch {
     return undefined
   }
@@ -39,9 +41,35 @@ function requireAddress(name: string, fallback?: string): string {
   return parsed
 }
 
+const artifact = readArtifact()
+const artifactImplementation = typeof artifact?.implementation === 'string' ? artifact.implementation : undefined
+
 const proxy = requireAddress('PROXY')
 const proxyAdmin = requireAddress('PROXY_ADMIN')
-const implementation = requireAddress('IMPLEMENTATION', implementationFromArtifact())
+const implementation = requireAddress('IMPLEMENTATION', artifactImplementation)
+
+const chainId = env('CHAIN_ID') ?? '1'
+
+// The artifact records which chain its implementation was actually deployed to. A
+// local `--network hardhat` run leaves chainId 31337 behind, and the fallback above
+// would then feed that address into a batch stamped chainId 1: a well-formed,
+// signable transaction pointing the ProxyAdmin at an address holding no code on
+// mainnet. Only enforced when the address came from the artifact; setting
+// IMPLEMENTATION explicitly is the operator taking responsibility for the pairing.
+if (!env('IMPLEMENTATION') && artifact) {
+  if (typeof artifact.chainId !== 'number') {
+    console.warn(
+      `warning: ${ARTIFACT_PATH} records no chainId; cannot confirm ${implementation} was deployed to chain ${chainId}`
+    )
+  } else if (String(artifact.chainId) !== chainId) {
+    const where = typeof artifact.network === 'string' ? ` (network "${artifact.network}")` : ''
+    throw new Error(
+      `${ARTIFACT_PATH} records an implementation deployed to chainId ${artifact.chainId}${where}, ` +
+        `but this batch targets chainId ${chainId}. Re-run \`yarn deploy:mainnet\` to deploy to the ` +
+        `target chain, or set IMPLEMENTATION explicitly to an address deployed there.`
+    )
+  }
+}
 
 if (proxy === implementation) {
   throw new Error('PROXY and IMPLEMENTATION are the same address; a proxy cannot be its own implementation')
@@ -52,8 +80,6 @@ if (proxy === proxyAdmin) {
 if (implementation === proxyAdmin) {
   throw new Error('IMPLEMENTATION and PROXY_ADMIN are the same address; check which is which')
 }
-
-const chainId = env('CHAIN_ID') ?? '1'
 
 // This script emits the payload a multisig signs to move ~85 ETH, so a mistyped
 // invocation must fail loudly rather than with a low-signal Node type error.
