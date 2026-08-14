@@ -19,11 +19,13 @@ const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL ?? ''
 function deployerAccounts(): string[] {
   const key = process.env.PRIVATE_KEY?.trim()
   if (!key) return []
-  if (!/^(0x)?[0-9a-fA-F]{64}$/.test(key)) {
+  if (!/^(0x)?[0-9a-fA-F]{64}$/i.test(key)) {
     console.warn('warning: PRIVATE_KEY is set but is not a 32-byte hex key; mainnet has no signer')
     return []
   }
-  return [key.startsWith('0x') ? key : `0x${key}`]
+  // Strip any prefix before re-adding it: ethers expects a lowercase 0x, and a
+  // case-insensitive test above means "0X…" reaches here too.
+  return [`0x${key.replace(/^0x/i, '')}`]
 }
 
 const config: HardhatUserConfig = {

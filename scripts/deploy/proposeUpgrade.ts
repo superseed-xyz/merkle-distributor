@@ -49,6 +49,22 @@ const proxyAdmin = requireAddress('PROXY_ADMIN')
 const implementation = requireAddress('IMPLEMENTATION', artifactImplementation)
 
 const chainId = env('CHAIN_ID') ?? '1'
+// chainId goes into the batch verbatim and is what a signer reads to confirm which
+// network they are authorising. Garbage here produces a misleading file rather than
+// an error, so reject anything that is not a positive integer.
+if (!/^[0-9]+$/.test(chainId) || Number(chainId) <= 0 || !Number.isSafeInteger(Number(chainId))) {
+  throw new Error(`CHAIN_ID must be a positive integer; got: ${chainId}`)
+}
+
+/** Accepts the number our deploy script writes, and a numeric string from a hand-edited artifact. */
+function parseChainId(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isSafeInteger(value) && value > 0 ? value : undefined
+  if (typeof value === 'string' && /^[0-9]+$/.test(value.trim())) {
+    const parsed = Number(value.trim())
+    return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined
+  }
+  return undefined
+}
 
 // The artifact records which chain its implementation was actually deployed to. A
 // local `--network hardhat` run leaves chainId 31337 behind, and the fallback above
@@ -57,14 +73,22 @@ const chainId = env('CHAIN_ID') ?? '1'
 // mainnet. Only enforced when the address came from the artifact; setting
 // IMPLEMENTATION explicitly is the operator taking responsibility for the pairing.
 if (!env('IMPLEMENTATION') && artifact) {
-  if (typeof artifact.chainId !== 'number') {
+  const recorded = parseChainId(artifact.chainId)
+  const where = typeof artifact.network === 'string' ? ` (network "${artifact.network}")` : ''
+  if (artifact.chainId === undefined || artifact.chainId === null) {
     console.warn(
       `warning: ${ARTIFACT_PATH} records no chainId; cannot confirm ${implementation} was deployed to chain ${chainId}`
     )
-  } else if (String(artifact.chainId) !== chainId) {
-    const where = typeof artifact.network === 'string' ? ` (network "${artifact.network}")` : ''
+  } else if (recorded === undefined) {
+    // Present but unreadable. Refusing beats warning: the guard cannot do its job, and
+    // a malformed artifact is itself reason to stop before a multisig signs anything.
     throw new Error(
-      `${ARTIFACT_PATH} records an implementation deployed to chainId ${artifact.chainId}${where}, ` +
+      `${ARTIFACT_PATH} records an unreadable chainId (${JSON.stringify(artifact.chainId)})${where}; ` +
+        `fix the artifact, or set IMPLEMENTATION explicitly to bypass this check.`
+    )
+  } else if (recorded !== Number(chainId)) {
+    throw new Error(
+      `${ARTIFACT_PATH} records an implementation deployed to chainId ${recorded}${where}, ` +
         `but this batch targets chainId ${chainId}. Re-run \`yarn deploy:mainnet\` to deploy to the ` +
         `target chain, or set IMPLEMENTATION explicitly to an address deployed there.`
     )

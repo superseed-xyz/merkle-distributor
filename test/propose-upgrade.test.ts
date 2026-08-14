@@ -85,4 +85,36 @@ describe('proposeUpgrade chainId guard', () => {
     expect(r.ok, r.output).to.equal(true)
     expect(r.output).to.match(/records no chainId/)
   })
+
+  it('enforces the guard when the artifact records chainId as a numeric string', () => {
+    const dir = workdir({ implementation: IMPLEMENTATION, chainId: '31337', network: 'hardhat' })
+    const r = run(dir, { ...base, CHAIN_ID: '1' })
+    expect(r.ok, 'a stringified chainId must not bypass the guard').to.equal(false)
+    expect(r.output).to.match(/chainId 31337/)
+    expect(fs.existsSync(r.out)).to.equal(false)
+  })
+
+  it('accepts a matching chainId recorded as a numeric string', () => {
+    const dir = workdir({ implementation: IMPLEMENTATION, chainId: '1', network: 'mainnet' })
+    const r = run(dir, { ...base, CHAIN_ID: '1' })
+    expect(r.ok, r.output).to.equal(true)
+  })
+
+  it('refuses an artifact whose chainId is present but unreadable', () => {
+    const dir = workdir({ implementation: IMPLEMENTATION, chainId: 'mainnet' })
+    const r = run(dir, { ...base, CHAIN_ID: '1' })
+    expect(r.ok).to.equal(false)
+    expect(r.output).to.match(/unreadable chainId/)
+    expect(fs.existsSync(r.out)).to.equal(false)
+  })
+
+  it('refuses a CHAIN_ID that is not a positive integer', () => {
+    for (const bad of ['abc', '0', '-1', '1.5']) {
+      const dir = workdir({ implementation: IMPLEMENTATION, chainId: 1 })
+      const r = run(dir, { ...base, CHAIN_ID: bad })
+      expect(r.ok, `CHAIN_ID=${bad} should be refused`).to.equal(false)
+      expect(r.output).to.match(/CHAIN_ID must be a positive integer/)
+      expect(fs.existsSync(r.out), `CHAIN_ID=${bad} wrote a batch`).to.equal(false)
+    }
+  })
 })
