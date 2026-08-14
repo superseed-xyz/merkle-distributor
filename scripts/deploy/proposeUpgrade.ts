@@ -1,5 +1,7 @@
+import 'dotenv/config'
 import fs from 'fs'
 import { Interface, getAddress, isAddress, ZeroAddress } from 'ethers'
+import { env } from '../env'
 
 /**
  * Emits a Safe Transaction Builder JSON for installing an implementation behind an
@@ -27,7 +29,7 @@ function implementationFromArtifact(): string | undefined {
 }
 
 function requireAddress(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback
+  const value = env(name) ?? fallback
   if (!value) throw new Error(`${name} is required`)
   if (!isAddress(value)) throw new Error(`${name} is not an address: ${value}`)
   const parsed = getAddress(value)
@@ -51,7 +53,7 @@ if (implementation === proxyAdmin) {
   throw new Error('IMPLEMENTATION and PROXY_ADMIN are the same address; check which is which')
 }
 
-const chainId = process.env.CHAIN_ID ?? '1'
+const chainId = env('CHAIN_ID') ?? '1'
 
 // This script emits the payload a multisig signs to move ~85 ETH, so a mistyped
 // invocation must fail loudly rather than with a low-signal Node type error.
